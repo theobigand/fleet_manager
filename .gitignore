@@ -1,0 +1,20 @@
+# Virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+
+# Photos uploaded by users
+assets/photos/*
+!assets/photos/.gitkeep
