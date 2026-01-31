@@ -1,0 +1,9 @@
+# dao/__init__.py - Export des DAOs
+from dao.base_dao import BaseDAO
+from dao.vehicle_dao import VehicleDAO
+from dao.employee_dao import EmployeeDAO
+from dao.sortie_dao import SortieDAO
+from dao.maintenance_dao import MaintenanceDAO
+from dao.document_dao import DocumentDAO
+from dao.user_dao import UserDAO
+from dao.stats_dao import StatsDAO

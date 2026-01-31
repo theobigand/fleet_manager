@@ -1,4 +1,19 @@
-tkcalendar>=1.6.1
-matplotlib>=3.8.0
-pillow>=10.0.0
-reportlab>=4.0.0
+# Requirements pour l'application de Gestion de Parc Automobile
+# Installation: pip install -r requirements.txt
+
+# === DÉPENDANCES OPTIONNELLES ===
+# Ces modules ajoutent des fonctionnalités supplémentaires mais l'application
+# fonctionne sans eux (avec fonctionnalités réduites)
+
+# Graphiques dans le module Statistiques
+matplotlib>=3.5.0
+
+# Export PDF dans le module Statistiques  
+reportlab>=3.6.0
+
+# === DÉPENDANCES INCLUSES AVEC PYTHON ===
+# Ces modules sont déjà inclus avec Python, pas besoin de les installer:
+# - tkinter (interface graphique)
+# - sqlite3 (base de données)
+# - hashlib (hashage mots de passe)
+# - os, datetime, etc.
