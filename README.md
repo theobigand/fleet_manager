@@ -102,23 +102,70 @@ fonctionnalités réduites (pas de graphiques, pas d'export PDF).
 
 ```
 fleet_manager/
-├── main.py              # Point d'entrée
-├── config.py            # Configuration et constantes
-├── database.py          # Gestion SQLite et requêtes
-├── views/
+├── main.py                     # Point d'entrée
+├── config.py                   # Configuration et constantes
+├── widgets.py                  # Composants UI réutilisables
+├── requirements.txt            # Dépendances Python
+│
+├── controllers/                # Logique métier
 │   ├── __init__.py
-│   ├── login.py         # Écran de connexion
-│   ├── dashboard.py     # Tableau de bord
-│   ├── vehicles.py      # Gestion véhicules
-│   ├── employees.py     # Gestion employés
-│   ├── reservations.py  # Sorties et retours
-│   ├── maintenance.py   # Maintenance et carburant
-│   ├── documents.py     # Documents administratifs
-│   └── statistics.py    # Statistiques et exports
-├── data/
-│   └── fleet.db         # Base de données SQLite
-└── exports/             # Fichiers exportés (CSV, PDF)
+│   ├── result.py               # Classe Result pour les retours d'opérations
+│   ├── auth_controller.py      # Authentification
+│   ├── vehicle_controller.py   # Gestion véhicules
+│   ├── employee_controller.py  # Gestion employés
+│   ├── sortie_controller.py    # Gestion sorties/réservations
+│   ├── maintenance_controller.py # Gestion maintenance et ravitaillements
+│   ├── document_controller.py  # Gestion documents
+│   └── stats_controller.py     # Statistiques et rapports
+│
+├── dao/                        # Couche d'accès aux données
+│   ├── __init__.py
+│   ├── base_dao.py             # Classe DAO de base
+│   ├── user_dao.py             # Accès données utilisateurs
+│   ├── vehicle_dao.py          # Accès données véhicules
+│   ├── employee_dao.py         # Accès données employés
+│   ├── sortie_dao.py           # Accès données sorties
+│   ├── maintenance_dao.py      # Accès données maintenance
+│   ├── document_dao.py         # Accès données documents
+│   └── stats_dao.py            # Accès données statistiques
+│
+├── models/                     # Entités métier (dataclasses)
+│   ├── __init__.py
+│   ├── user.py                 # Modèle User
+│   ├── vehicle.py              # Modèle Vehicle
+│   ├── employee.py             # Modèle Employee
+│   ├── sortie.py               # Modèle Sortie
+│   ├── maintenance.py          # Modèle Maintenance
+│   ├── ravitaillement.py       # Modèle Ravitaillement
+│   ├── document.py             # Modèle Document
+│   └── log.py                  # Modèle Log
+│
+├── views/                      # Interface utilisateur (Tkinter)
+│   ├── __init__.py
+│   ├── login.py                # Écran de connexion
+│   ├── dashboard.py            # Tableau de bord
+│   ├── vehicles.py             # Vue gestion véhicules
+│   ├── employees.py            # Vue gestion employés
+│   ├── reservations.py         # Vue sorties et retours
+│   ├── maintenance.py          # Vue maintenance et carburant
+│   ├── documents.py            # Vue documents administratifs
+│   └── statistics.py           # Vue statistiques et exports
+│
+├── data/                       # Données persistantes
+│   ├── fleet.db                # Base de données SQLite
+│   └── create_table.sql        # Script de création des tables
+│
+└── exports/                    # Fichiers exportés (CSV, PDF)
 ```
+
+## Architecture
+
+L'application suit une architecture **MVC** (Model-View-Controller) avec une couche **DAO** (Data Access Object) :
+
+- **Models** : Dataclasses représentant les entités métier
+- **Views** : Interfaces Tkinter pour l'interaction utilisateur
+- **Controllers** : Logique métier et validation
+- **DAO** : Abstraction de l'accès à la base de données SQLite
 
 ## Base de données
 
@@ -149,4 +196,4 @@ SQLite avec 9 tables:
 
 ## Auteur
 
-Projet ESILV - Digital Twins M1
+Roméo AGOSTINO - Mathieu AUDIBERT - Théo BIGAND
