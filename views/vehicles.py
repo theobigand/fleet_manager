@@ -1,294 +1,251 @@
-# views/vehicles.py - Vue de gestion des véhicules (MVC)
 import tkinter as tk
 from tkinter import ttk, messagebox
-from typing import Optional, Dict, Any, Callable
-
 from controllers import VehicleController
-from widgets import FilterableTreeview, BaseFormDialog, SearchBar, AlertBanner
-from config import (VEHICLE_TYPES, FUEL_TYPES, SERVICES, VEHICLE_STATUSES, 
-                    AFFECTATION_TYPES, COLORS, DEFAULT_REVISION_KM)
 
 
 class VehiclesView(tk.Frame):
-    """Vue de gestion des véhicules - Affichage uniquement"""
-
-    def __init__(self, parent: tk.Widget, app: Any):
-        super().__init__(parent)
+    def __init__(self, parent, app):
+        super().__init__(parent, bg='white')
         self.app = app
-        self.controller = VehicleController()
-        self.configure(bg='#ffffff')
-        self._create_widgets()
+        self.ctrl = VehicleController()
+        self.setup_vehicle()
         self.refresh()
 
-    def _create_widgets(self) -> None:
-        header = tk.Frame(self, bg='#ffffff')
-        header.pack(fill='x', padx=20, pady=(20, 10))
+    def setup_vehicle(self):
+        # titre
+        top = tk.Frame(self, bg='white')
+        top.pack(fill='x', padx=20, pady=20)
+        tk.Label(top, text="Véhicules", font=('Arial', 18, 'bold'), bg='white').pack(side='left')
+        tk.Button(top, text="+ Ajouter", command=self.add, bg='green', fg='white').pack(side='right')
 
-        tk.Label(header, text="Gestion des véhicules",
-                font=('Helvetica', 18, 'bold'), bg='#ffffff', fg='#000000').pack(side='left')
+        # filtre statut
+        filter = tk.Frame(self, bg='white')
+        filter.pack(fill='x', padx=20, pady=5)
+        tk.Label(filter, text="Statut:", bg='white').pack(side='left')
+        self.filter = ttk.Combobox(filter, values=['Tous', 'disponible', 'en sortie', 'en maintenance'], width=15)
+        self.filter.set('Tous')
+        self.filter.pack(side='left', padx=5)
+        self.filter.bind('<<ComboboxSelected>>', lambda e: self.refresh())
+        tk.Button(filter, text="Actualiser", command=self.refresh, bg='blue', fg='white').pack(side='right')
 
-        if self.app.current_user.role in ('admin', 'gestionnaire'):
-            tk.Button(header, text="Nouveau véhicule", command=lambda: self._show_form(),
-                     bg='#27ae60', fg='#000000', relief='flat', cursor='hand2').pack(side='right')
+        # alerte parc complet
+        self.alert = tk.Frame(self, bg='red', pady=10)
+        tk.Label(self.alert, text="⚠️ PARC COMPLET - Aucun véhicule disponible", 
+                font=('Arial', 12, 'bold'), bg='red', fg='white').pack()
 
-        self.search_bar = SearchBar(self, on_search=self.refresh, filters=[
-            ("Statut", "statut", list(VEHICLE_STATUSES.keys())),
-            ("Type", "type_vehicule", VEHICLE_TYPES),
-            ("Affectation", "type_affectation", list(AFFECTATION_TYPES.keys())),
-        ])
-        self.search_bar.pack(fill='x', padx=20, pady=10)
-
-        self.alert_banner = AlertBanner(self, "PARC COMPLET - Aucun véhicule disponible")
+        # liste
+        cols = ('immat', 'marque', 'modele', 'statut', 'km')
+        self.tree = ttk.Treeview(self, columns=cols, show='headings', height=15)
+        self.tree.heading('immat', text='Immatriculation')
+        self.tree.heading('marque', text='Marque')
+        self.tree.heading('modele', text='Modèle')
+        self.tree.heading('statut', text='Statut')
+        self.tree.heading('km', text='Km')
         
-        columns = [
-            ('immat', 'Immatriculation', 120), ('marque', 'Marque', 100),
-            ('modele', 'Modèle', 100), ('type', 'Type', 90), ('statut', 'Statut', 100),
-            ('km', 'Kilométrage', 100), ('affectation', 'Affectation', 100), ('service', 'Service', 100),
-        ]
-        self.tree = FilterableTreeview(self, columns=columns,
-            on_double_click=self._show_detail, on_right_click=self._show_context_menu)
+        # couleurs
+        self.tree.tag_configure('disponible', background='lightgreen')
+        self.tree.tag_configure('en_sortie', background='yellow')
+        self.tree.tag_configure('en_maintenance', background='orange')
+        self.tree.tag_configure('en_panne', background='red')
+        
         self.tree.pack(fill='both', expand=True, padx=20, pady=10)
+        self.tree.bind('<Double-1>', lambda e: self.detail())
+
+        # boutons
+        btns = tk.Frame(self, bg='white')
+        btns.pack(fill='x', padx=20, pady=10)
+        tk.Button(btns, text="Détails", command=self.detail, bg='blue', fg='white').pack(side='left', padx=5)
+        tk.Button(btns, text="Modifier", command=self.edit, bg='orange', fg='white').pack(side='left', padx=5)
+        tk.Button(btns, text="Supprimer", command=self.delete, bg='red', fg='white').pack(side='left', padx=5)
+
+    def refresh(self):
+        # vider
+        for item in self.tree.get_children():
+            self.tree.delete(item)
         
-        for status, color in COLORS.items():
-            self.tree.configure_tag(status, background=color)
+        # filtrer
+        filter_value = self.filter.get()
+        filters = None if filter_value == 'Tous' else {'statut': filter_value}
         
-        self.context_menu = tk.Menu(self, tearoff=0)
-        self.context_menu.add_command(label="Voir détails", command=self._show_detail)
-        if self.app.current_user.role in ('admin', 'gestionnaire'):
-            self.context_menu.add_command(label="Modifier", command=self._edit_selected)
-            self.context_menu.add_separator()
-            self.context_menu.add_command(label="Supprimer", command=self._delete_selected)
-    
-    def _show_context_menu(self, event: tk.Event) -> None:
-        self.context_menu.post(event.x_root, event.y_root)
-    
-    def refresh(self) -> None:
-        filters: Dict[str, Any] = {}
-        search = self.search_bar.get_value('search')
-        if search:
-            filters['search'] = search
-        for key in ('statut', 'type_vehicule', 'type_affectation'):
-            value = self.search_bar.get_value(key)
-            if value:
-                filters[key] = value
-        
-        vehicles = self.controller.get_all(filters if filters else None)
-        self.tree.clear()
-        available_count = 0
+        # charger
+        vehicles = self.ctrl.get_all(filters)
+        dispo = 0
         
         for v in vehicles:
-            if v.is_available:
-                available_count += 1
-            self.tree.insert(
-                values=(v.immatriculation, v.marque, v.modele, v.type_vehicule or '-',
-                    VEHICLE_STATUSES.get(v.statut, v.statut), v.formatted_km,
-                    AFFECTATION_TYPES.get(v.type_affectation, v.type_affectation), v.service_principal or '-'),
-                tags=(v.statut, str(v.id))
-            )
+            if v.statut == 'disponible':
+                dispo += 1
+            self.tree.insert('', 'end',
+                values=(v.immatriculation, v.marque, v.modele, v.statut, f"{v.kilometrage_actuel} km"),
+                tags=(v.statut, str(v.id)))
         
-        if available_count == 0 and len(vehicles) > 0:
-            self.alert_banner.show()
+        # Alerte
+        if dispo == 0 and len(vehicles) > 0:
+            self.alert.pack(fill='x', padx=20, pady=10, before=self.tree)
         else:
-            self.alert_banner.hide()
-    
-    def _get_selected_vehicle_id(self) -> Optional[int]:
-        vehicle_id = self.tree.get_selected_id(tag_index=1)
-        if vehicle_id is None:
-            messagebox.showwarning("Attention", "Veuillez sélectionner un véhicule")
-        return vehicle_id
-    
-    def _show_form(self, vehicle=None) -> None:
-        VehicleFormDialog(self, self.app, self.controller, vehicle, self.refresh)
-    
-    def _edit_selected(self) -> None:
-        vehicle_id = self._get_selected_vehicle_id()
-        if vehicle_id:
-            self._show_form(self.controller.get_by_id(vehicle_id))
-    
-    def _delete_selected(self) -> None:
-        vehicle_id = self._get_selected_vehicle_id()
-        if not vehicle_id:
+            self.alert.pack_forget()
+
+    def add(self):
+        VehiculeForm(self, self.app, self.ctrl, None, self.refresh)
+
+    def edit(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Attention", "Sélectionnez un véhicule")
             return
-        vehicle = self.controller.get_by_id(vehicle_id)
-        if vehicle and messagebox.askyesno("Confirmation", f"Supprimer {vehicle.immatriculation} ?"):
-            result = self.controller.delete(vehicle_id, self.app.current_user.id)
-            if result.success:
-                self.refresh()
-            else:
-                messagebox.showerror("Erreur", result.message)
-    
-    def _show_detail(self) -> None:
-        vehicle_id = self._get_selected_vehicle_id()
-        if vehicle_id:
-            VehicleDetailDialog(self, self.app, self.controller, vehicle_id)
+        vid = int(self.tree.item(sel[0], 'tags')[1])
+        veh = self.ctrl.get_by_id(vid)
+        VehiculeForm(self, self.app, self.ctrl, veh, self.refresh)
 
-
-class VehicleFormDialog(BaseFormDialog):
-    """Formulaire véhicule - Appelle le controller pour la logique"""
-    
-    def __init__(self, parent, app, controller: VehicleController, vehicle=None, refresh_callback=None):
-        self.app = app
-        self.controller = controller
-        self.vehicle = vehicle
-        self.refresh_callback = refresh_callback
-        title = "Modifier le véhicule" if vehicle else "Nouveau véhicule"
-        super().__init__(parent, title, width=600, height=650)
-        self._build_form()
-        if vehicle:
-            self._load_data()
-    
-    def _build_form(self) -> None:
-        self.add_section_title("Informations générales")
-        self.add_entry("Immatriculation *", "immatriculation")
-        self.add_entry("Marque *", "marque")
-        self.add_entry("Modèle *", "modele")
-        self.add_combobox("Type de véhicule", "type_vehicule", VEHICLE_TYPES)
-        self.add_entry("Année", "annee")
-        self.add_entry("Date acquisition (AAAA-MM-JJ)", "date_acquisition")
-        self.add_entry("Kilométrage actuel", "kilometrage_actuel", default="0")
-        self.add_combobox("Carburant", "carburant", FUEL_TYPES)
-        self.add_entry("Puissance fiscale (CV)", "puissance_fiscale")
-        self.add_entry("N° châssis", "numero_chassis")
-        
-        self.add_section_title("Affectation")
-        self.add_combobox("Service principal", "service_principal", SERVICES)
-        self.add_combobox("Type affectation", "type_affectation", list(AFFECTATION_TYPES.keys()), default="mutualise")
-        self.add_combobox("Statut", "statut", list(VEHICLE_STATUSES.keys()), default="disponible")
-        self.add_entry("Seuil révision (km)", "seuil_revision_km", default=str(DEFAULT_REVISION_KM))
-        self.add_file_picker("Photo", "photo_path", [("Images", "*.png *.jpg *.jpeg")])
-        self.add_buttons(on_save=self._save)
-    
-    def _load_data(self) -> None:
-        if self.vehicle:
-            for key in self.vars:
-                value = getattr(self.vehicle, key, None)
-                if value is not None:
-                    self.set_value(key, value)
-    
-    def _save(self) -> None:
-        # La vue collecte les données, le controller valide et persiste
-        data = {key: self.get_value(key) for key in self.vars}
-        
-        if self.vehicle:
-            result = self.controller.update(self.vehicle.id, data, self.app.current_user.id)
+    def delete(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Attention", "Sélectionnez un véhicule")
+            return
+        vid = int(self.tree.item(sel[0], 'tags')[1])
+        veh = self.ctrl.get_by_id(vid)
+        if not messagebox.askyesno("Confirmation", f"Supprimer {veh.immatriculation} ?"):
+            return
+        res = self.ctrl.delete(vid, self.app.current_user.id)
+        if res.success:
+            messagebox.showinfo("OK", "Véhicule supprimé")
+            self.refresh()
         else:
-            result = self.controller.create(data, self.app.current_user.id)
-        
-        if result.success:
-            self.show_success(result.message)
-            if self.refresh_callback:
-                self.refresh_callback()
-            self.destroy()
-        else:
-            self.show_error(result.message)
+            messagebox.showerror("Erreur", res.message)
+
+    def detail(self):
+        sel = self.tree.selection()
+        if not sel:
+            return
+        vid = int(self.tree.item(sel[0], 'tags')[1])
+        VehDetail(self, self.ctrl, vid)
 
 
-class VehicleDetailDialog(tk.Toplevel):
-    """Fiche détaillée véhicule"""
-
-    def __init__(self, parent, app, controller: VehicleController, vehicle_id: int):
+class VehiculeForm(tk.Toplevel):
+    def __init__(self, parent, app, ctrl, vehicle, callback):
         super().__init__(parent)
         self.app = app
-        self.controller = controller
-        self.vehicle_id = vehicle_id
-        self.vehicle = controller.get_by_id(vehicle_id)
-
-        self.title(f"Fiche - {self.vehicle.immatriculation}")
-        self.geometry("800x600")
-        self.configure(bg='#ffffff')
-        self.transient(parent)
-        self._create_widgets()
-
-    def _create_widgets(self) -> None:
-        v = self.vehicle
-
-        header = tk.Frame(self, bg='#f5f5f5', pady=15)
-        header.pack(fill='x')
-        tk.Label(header, text=f"{v.immatriculation}", font=('Helvetica', 18, 'bold'),
-                bg='#f5f5f5', fg='#000000').pack(side='left', padx=20)
-        tk.Label(header, text=f"{v.marque} {v.modele}",
-                font=('Helvetica', 14), bg='#f5f5f5', fg='#333333').pack(side='left')
-
-        status_color = COLORS.get(v.statut, '#95a5a6')
-        tk.Label(header, text=VEHICLE_STATUSES.get(v.statut, v.statut),
-                font=('Helvetica', 10, 'bold'), bg=status_color, padx=10, pady=3).pack(side='right', padx=20)
+        self.ctrl = ctrl
+        self.veh = vehicle
+        self.cb = callback
         
-        notebook = ttk.Notebook(self)
-        notebook.pack(fill='both', expand=True, padx=10, pady=10)
+        self.title("Modifier" if vehicle else "Nouveau véhicule")
+        self.geometry("450x550")
         
-        self._create_info_tab(notebook)
-        self._create_sorties_tab(notebook)
-        self._create_maintenance_tab(notebook)
-        self._create_documents_tab(notebook)
-        self._create_fuel_tab(notebook)
+        f = tk.Frame(self, bg='white', padx=20, pady=20)
+        f.pack(fill='both', expand=True)
+        
+        # Champs
+        tk.Label(f, text="Immatriculation *", bg='white').grid(row=0, column=0, sticky='w', pady=5)
+        self.immat = tk.Entry(f, width=30)
+        self.immat.grid(row=0, column=1, pady=5)
+        
+        tk.Label(f, text="Marque *", bg='white').grid(row=1, column=0, sticky='w', pady=5)
+        self.marque = tk.Entry(f, width=30)
+        self.marque.grid(row=1, column=1, pady=5)
+        
+        tk.Label(f, text="Modèle *", bg='white').grid(row=2, column=0, sticky='w', pady=5)
+        self.modele = tk.Entry(f, width=30)
+        self.modele.grid(row=2, column=1, pady=5)
+        
+        tk.Label(f, text="Type", bg='white').grid(row=3, column=0, sticky='w', pady=5)
+        self.type = ttk.Combobox(f, values=['Voiture', 'Utilitaire', 'Camionnette'], width=28)
+        self.type.grid(row=3, column=1, pady=5)
+        
+        tk.Label(f, text="Année", bg='white').grid(row=4, column=0, sticky='w', pady=5)
+        self.annee = tk.Entry(f, width=30)
+        self.annee.grid(row=4, column=1, pady=5)
+        
+        tk.Label(f, text="Kilométrage", bg='white').grid(row=5, column=0, sticky='w', pady=5)
+        self.km = tk.Entry(f, width=30)
+        self.km.insert(0, "0")
+        self.km.grid(row=5, column=1, pady=5)
+        
+        tk.Label(f, text="Carburant", bg='white').grid(row=6, column=0, sticky='w', pady=5)
+        self.carb = ttk.Combobox(f, values=['Essence', 'Diesel', 'Électrique'], width=28)
+        self.carb.grid(row=6, column=1, pady=5)
+        
+        tk.Label(f, text="Statut", bg='white').grid(row=7, column=0, sticky='w', pady=5)
+        self.statut = ttk.Combobox(f, values=['disponible', 'en sortie', 'en maintenance'], width=28)
+        self.statut.set('disponible')
+        self.statut.grid(row=7, column=1, pady=5)
+        
+        # boutons
+        btns = tk.Frame(self, bg='white')
+        btns.pack(fill='x', pady=10)
+        tk.Button(btns, text="Enregistrer", command=self.save, bg='green', fg='white', width=12).pack(side='right', padx=20)
+        tk.Button(btns, text="Annuler", command=self.destroy, bg='gray', fg='white', width=12).pack(side='right', padx=5)
+        
+        # charger si modif
+        if vehicle:
+            self.immat.insert(0, vehicle.immatriculation)
+            self.marque.insert(0, vehicle.marque)
+            self.modele.insert(0, vehicle.modele)
+            self.type.set(vehicle.type_vehicule or '')
+            self.annee.insert(0, vehicle.annee or '')
+            self.km.delete(0, 'end')
+            self.km.insert(0, vehicle.kilometrage_actuel or 0)
+            self.carb.set(vehicle.carburant or '')
+            self.statut.set(vehicle.statut)
     
-    def _create_info_tab(self, notebook) -> None:
-        frame = tk.Frame(notebook, bg='white')
-        notebook.add(frame, text='Informations')
-        grid = tk.Frame(frame, bg='white')
-        grid.pack(fill='both', expand=True, padx=20, pady=20)
+    def save(self):
+        if not self.immat.get() or not self.marque.get() or not self.modele.get():
+            messagebox.showerror("Erreur", "Remplissez les champs obligatoires")
+            return
+        
+        data = {
+            'immatriculation': self.immat.get(),
+            'marque': self.marque.get(),
+            'modele': self.modele.get(),
+            'type_vehicule': self.type.get() or None,
+            'annee': self.annee.get() or None,
+            'kilometrage_actuel': int(self.km.get() or 0),
+            'carburant': self.carb.get() or None,
+            'statut': self.statut.get()
+        }
+        
+        if self.veh:
+            res = self.ctrl.update(self.veh.id, data, self.app.current_user.id)
+        else:
+            res = self.ctrl.create(data, self.app.current_user.id)
+        
+        if res.success:
+            messagebox.showinfo("OK", "Enregistré")
+            self.cb()
+            self.destroy()
+        else:
+            messagebox.showerror("Erreur", res.message)
 
-        v = self.vehicle
+
+class VehDetail(tk.Toplevel):
+    def __init__(self, parent, ctrl, vid):
+        super().__init__(parent)
+        v = ctrl.get_by_id(vid)
+        
+        self.title(f"Fiche - {v.immatriculation}")
+        self.geometry("600x400")
+        
+        # header
+        h = tk.Frame(self, bg='lightgray', pady=15)
+        h.pack(fill='x')
+        tk.Label(h, text=f"{v.immatriculation} - {v.marque} {v.modele}", 
+                font=('Arial', 16, 'bold'), bg='lightgray').pack(padx=20)
+        
+        # infos
+        info = tk.Frame(self, bg='white', padx=20, pady=20)
+        info.pack(fill='both', expand=True)
+        
         infos = [
-            ("Immatriculation", v.immatriculation), ("Marque", v.marque), ("Modèle", v.modele),
-            ("Type", v.type_vehicule or '-'), ("Année", v.annee or '-'), ("Acquisition", v.date_acquisition or '-'),
-            ("Kilométrage", v.formatted_km), ("Carburant", v.carburant or '-'),
-            ("Puissance", f"{v.puissance_fiscale} CV" if v.puissance_fiscale else '-'),
-            ("Châssis", v.numero_chassis or '-'), ("Service", v.service_principal or '-'),
-            ("Affectation", AFFECTATION_TYPES.get(v.type_affectation, '-')),
+            ("Marque:", v.marque),
+            ("Modèle:", v.modele),
+            ("Type:", v.type_vehicule or '-'),
+            ("Année:", v.annee or '-'),
+            ("Km:", f"{v.kilometrage_actuel} km"),
+            ("Carburant:", v.carburant or '-'),
+            ("Statut:", v.statut)
         ]
-
-        for i, (label, value) in enumerate(infos):
-            r, c = i // 2, (i % 2) * 2
-            tk.Label(grid, text=f"{label}:", font=('Helvetica', 10, 'bold'),
-                    bg='white', fg='#666666').grid(row=r, column=c, sticky='e', padx=(20, 5), pady=5)
-            tk.Label(grid, text=str(value), font=('Helvetica', 10),
-                    bg='white', fg='#000000').grid(row=r, column=c+1, sticky='w', pady=5)
-    
-    def _create_sorties_tab(self, notebook) -> None:
-        frame = tk.Frame(notebook, bg='white')
-        notebook.add(frame, text='Sorties')
-        cols = [('date', 'Date', 100), ('employe', 'Employé', 150), ('motif', 'Motif', 150),
-                ('dest', 'Destination', 120), ('km', 'Km', 80), ('statut', 'Statut', 80)]
-        tree = FilterableTreeview(frame, columns=cols)
-        tree.pack(fill='both', expand=True, padx=5, pady=5)
-        for s in self.controller.get_sorties(self.vehicle_id):
-            km = (s['km_retour'] - s['km_depart']) if s['km_retour'] and s['km_depart'] else '-'
-            tree.insert(values=(s['date_sortie_reelle'] or s['date_sortie_prevue'], f"{s['prenom']} {s['nom']}",
-                s['motif'] or '-', s['destination'] or '-', f"{km} km" if isinstance(km, int) else km, s['statut']))
-    
-    def _create_maintenance_tab(self, notebook) -> None:
-        frame = tk.Frame(notebook, bg='white')
-        notebook.add(frame, text='Maintenance')
-        cols = [('date', 'Date', 100), ('type', 'Type', 150), ('km', 'Km', 100), ('cout', 'Coût', 100), ('prest', 'Prestataire', 120)]
-        tree = FilterableTreeview(frame, columns=cols)
-        tree.pack(fill='both', expand=True, padx=5, pady=5)
-        for m in self.controller.get_maintenances(self.vehicle_id):
-            tree.insert(values=(m['date'], m['type_intervention'],
-                f"{m['kilometrage']:,}".replace(',', ' ') if m['kilometrage'] else '-',
-                f"{m['cout']:.2f} €" if m['cout'] else '-', m['prestataire'] or '-'))
-    
-    def _create_documents_tab(self, notebook) -> None:
-        frame = tk.Frame(notebook, bg='white')
-        notebook.add(frame, text='Documents')
-        cols = [('type', 'Type', 150), ('emission', 'Émission', 100), ('echeance', 'Échéance', 100), ('desc', 'Description', 200)]
-        tree = FilterableTreeview(frame, columns=cols)
-        tree.pack(fill='both', expand=True, padx=5, pady=5)
-        for d in self.controller.get_documents(self.vehicle_id):
-            tree.insert(values=(d['type_document'], d['date_emission'] or '-', d['date_echeance'] or '-', d['description'] or '-'))
-    
-    def _create_fuel_tab(self, notebook) -> None:
-        frame = tk.Frame(notebook, bg='white')
-        notebook.add(frame, text='Carburant')
-        conso = self.controller.calculate_consumption(self.vehicle_id)
-        h = tk.Frame(frame, bg='white')
-        h.pack(fill='x', padx=10, pady=10)
-        tk.Label(h, text="Conso moyenne:", font=('Helvetica', 10, 'bold'), bg='white', fg='#000000').pack(side='left')
-        tk.Label(h, text=f"{conso} L/100km" if conso else "N/A", font=('Helvetica', 10), bg='white',
-                fg='#5cb85c' if conso else '#666666').pack(side='left', padx=5)
-        cols = [('date', 'Date', 100), ('emp', 'Employé', 150), ('l', 'Litres', 80), ('c', 'Coût', 80), ('st', 'Station', 120)]
-        tree = FilterableTreeview(frame, columns=cols)
-        tree.pack(fill='both', expand=True, padx=5, pady=5)
-        for r in self.controller.get_ravitaillements(self.vehicle_id):
-            tree.insert(values=(r['date'], f"{r['prenom']} {r['nom']}" if r.get('prenom') else '-',
-                f"{r['quantite_litres']:.1f} L", f"{r['cout']:.2f} €" if r['cout'] else '-', r['station'] or '-'))
+        
+        for i, (lbl, val) in enumerate(infos):
+            tk.Label(info, text=lbl, font=('Arial', 10, 'bold'), bg='white').grid(row=i, column=0, sticky='e', padx=5, pady=5)
+            tk.Label(info, text=val, font=('Arial', 10), bg='white').grid(row=i, column=1, sticky='w', padx=5, pady=5)
+        
+        tk.Button(self, text="Fermer", command=self.destroy, bg='gray', fg='white').pack(pady=10)
