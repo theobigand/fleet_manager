@@ -1,4 +1,3 @@
-# controllers/stats_controller.py - Statistiques et exports
 from typing import Dict, Any, List
 from datetime import datetime
 import os
@@ -7,7 +6,7 @@ from config import EXPORTS_DIR
 
 
 class StatsController:
-    def __init__(self):
+    def __init__(self) -> None:
         self.dao = StatsDAO()
         self.vehicle_dao = VehicleDAO()
         self.log_dao = UserDAO()

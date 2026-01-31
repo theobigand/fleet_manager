@@ -1,15 +1,13 @@
-# controllers/sortie_controller.py - Logique métier des sorties
 from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 from models import Sortie
 from dao import SortieDAO, VehicleDAO, UserDAO
-from controllers.vehicle_controller import Result
+from controllers.result import Result
 
 
 class SortieController:
-    """Controller pour les sorties et réservations"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.dao = SortieDAO()
         self.vehicle_dao = VehicleDAO()
         self.log_dao = UserDAO()

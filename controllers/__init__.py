@@ -1,4 +1,3 @@
-# controllers/__init__.py - Export des controllers
 from controllers.vehicle_controller import VehicleController
 from controllers.employee_controller import EmployeeController
 from controllers.sortie_controller import SortieController
@@ -6,3 +5,4 @@ from controllers.maintenance_controller import MaintenanceController
 from controllers.document_controller import DocumentController
 from controllers.auth_controller import AuthController
 from controllers.stats_controller import StatsController
+from controllers.result import Result

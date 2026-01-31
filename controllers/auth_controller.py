@@ -1,14 +1,12 @@
-# controllers/auth_controller.py - Authentification
 from typing import Optional, List
 from models import User, Log
 from dao import UserDAO
-from controllers.vehicle_controller import Result
+from controllers.result import Result
 
 
 class AuthController:
-    """Controller pour l'authentification et les utilisateurs"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.dao = UserDAO()
     
     def login(self, username: str, password: str) -> Result:

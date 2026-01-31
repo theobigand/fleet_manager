@@ -1,19 +1,16 @@
-# controllers/maintenance_controller.py - Logique métier maintenance
 from typing import Optional, List, Dict, Any
 from models import Maintenance, Ravitaillement
 from dao import MaintenanceDAO, VehicleDAO, UserDAO
-from controllers.vehicle_controller import Result
+from controllers.result import Result
 
 
 class MaintenanceController:
-    """Controller pour la maintenance et les ravitaillements"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.dao = MaintenanceDAO()
         self.vehicle_dao = VehicleDAO()
         self.log_dao = UserDAO()
     
-    # === MAINTENANCES ===
     def get_all_maintenances(self, vehicle_immat: Optional[str] = None,
                              type_intervention: Optional[str] = None) -> List[Maintenance]:
         return self.dao.find_all_maintenances(vehicle_immat, type_intervention)
@@ -81,7 +78,6 @@ class MaintenanceController:
         self.log_dao.add_log(user_id, 'SUPPRESSION_MAINTENANCE', f"ID {maint_id}")
         return Result.ok(message="Intervention supprimée")
     
-    # === RAVITAILLEMENTS ===
     def get_all_ravitaillements(self, vehicle_immat: Optional[str] = None) -> List[Ravitaillement]:
         return self.dao.find_all_ravitaillements(vehicle_immat)
     
