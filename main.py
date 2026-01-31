@@ -1,4 +1,3 @@
-# main.py - Application principale (MVC)
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -16,22 +15,20 @@ from widgets import FilterableTreeview
 
 
 class FleetApp(tk.Tk):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.title("Gestion de Parc Automobile")
         self.geometry("1200x700")
         self.configure(bg='#ffffff')
 
-        # Configurer le style ttk pour avoir un thème clair
         style = ttk.Style()
-        style.theme_use('clam')  # Thème clair compatible cross-platform
+        style.theme_use('clam')
         style.configure('TEntry', fieldbackground='white', foreground='black')
         style.configure('TCombobox', fieldbackground='white', foreground='black')
         style.configure('TNotebook', background='#ffffff')
         style.configure('TNotebook.Tab', background='#e0e0e0', foreground='black')
         style.map('TNotebook.Tab', background=[('selected', '#ffffff')])
 
-        # Gérer la fermeture de la fenêtre
         self.protocol("WM_DELETE_WINDOW", self.quit_app)
 
         self.current_user = None
@@ -44,11 +41,10 @@ class FleetApp(tk.Tk):
 
         self.show_login()
 
-    def quit_app(self):
-        """Quitte proprement l'application"""
+    def quit_app(self) -> None:
         self.quit()
     
-    def _insert_test_data(self):
+    def _insert_test_data(self) -> None:
         """Insère des données de test si la BDD est vide"""
         from dao import VehicleDAO, EmployeeDAO, UserDAO
         
@@ -56,7 +52,6 @@ class FleetApp(tk.Tk):
         if len(vdao.find_all()) > 0:
             return
         
-        # Employés
         edao = EmployeeDAO()
         from models import Employee, Vehicle
         employees = [
@@ -69,7 +64,6 @@ class FleetApp(tk.Tk):
         for e in employees:
             edao.create(e)
         
-        # Véhicules
         vehicles = [
             Vehicle(immatriculation='AA-123-BB', marque='Renault', modele='Clio', type_vehicule='Citadine', annee=2021, kilometrage_actuel=45000, carburant='Essence', statut='disponible', service_principal='Commercial'),
             Vehicle(immatriculation='CC-456-DD', marque='Peugeot', modele='308', type_vehicule='Berline', annee=2020, kilometrage_actuel=67000, carburant='Diesel', statut='disponible', service_principal='Technique'),
@@ -80,26 +74,24 @@ class FleetApp(tk.Tk):
         for v in vehicles:
             vdao.create(v)
         
-        # Utilisateurs supplémentaires
         udao = UserDAO()
         from models import User
         udao.create(User(username='gestionnaire', role='gestionnaire', nom='Gestionnaire', prenom='Test'), 'gest123')
         udao.create(User(username='employe', role='employe', nom='Employé', prenom='Test'), 'emp123')
     
-    def show_login(self):
+    def show_login(self) -> None:
         for w in self.winfo_children():
             w.destroy()
         LoginView(self, self).pack(fill='both', expand=True)
     
-    def on_login_success(self, user):
+    def on_login_success(self, user) -> None:
         self.current_user = user
         self.show_main()
     
-    def show_main(self):
+    def show_main(self) -> None:
         for w in self.winfo_children():
             w.destroy()
         
-        # Sidebar
         sidebar = tk.Frame(self, bg='#f5f5f5', width=220)
         sidebar.pack(side='left', fill='y')
         sidebar.pack_propagate(False)
@@ -127,7 +119,6 @@ class FleetApp(tk.Tk):
                            command=lambda v=view: self.navigate_to(v))
             btn.pack(fill='x')
 
-        # Boutons en bas de la sidebar
         quit_btn = tk.Button(sidebar, text="Quitter", bg='#d0d0d0', fg='#000000',
                  relief='flat', pady=10, cursor='hand2')
         quit_btn.config(command=self.quit_app)
@@ -135,13 +126,12 @@ class FleetApp(tk.Tk):
         tk.Button(sidebar, text="Déconnexion", command=self.logout, bg='#e74c3c', fg='#000000',
                  relief='flat', pady=10, cursor='hand2').pack(side='bottom', fill='x')
 
-        # Content
         self.content_frame = tk.Frame(self, bg='#ffffff')
         self.content_frame.pack(side='left', fill='both', expand=True)
         
         self.navigate_to('dashboard')
     
-    def navigate_to(self, view_name, **kwargs):
+    def navigate_to(self, view_name, **kwargs) -> None:
         for w in self.content_frame.winfo_children():
             w.destroy()
         
@@ -163,7 +153,7 @@ class FleetApp(tk.Tk):
             else:
                 view_class(self.content_frame, self, **kwargs).pack(fill='both', expand=True)
     
-    def _show_admin_view(self):
+    def _show_admin_view(self) -> None:
         frame = tk.Frame(self.content_frame, bg='#ffffff')
         frame.pack(fill='both', expand=True)
 
@@ -172,7 +162,6 @@ class FleetApp(tk.Tk):
         notebook = ttk.Notebook(frame)
         notebook.pack(fill='both', expand=True, padx=20, pady=10)
 
-        # Logs
         logs_frame = tk.Frame(notebook, bg='white')
         notebook.add(logs_frame, text='Logs')
         cols = [('date', 'Date', 150), ('user', 'Utilisateur', 120), ('action', 'Action', 150), ('details', 'Détails', 300)]
@@ -181,7 +170,6 @@ class FleetApp(tk.Tk):
         for log in self.auth_controller.get_logs(200):
             tree_logs.insert(values=(log.date_action, log.username or '-', log.action, log.details or '-'))
 
-        # Users
         users_frame = tk.Frame(notebook, bg='white')
         notebook.add(users_frame, text='Utilisateurs')
         cols2 = [('username', 'Username', 120), ('role', 'Rôle', 100), ('nom', 'Nom', 150), ('prenom', 'Prénom', 150), ('email', 'Email', 200)]
@@ -190,7 +178,7 @@ class FleetApp(tk.Tk):
         for u in self.auth_controller.get_all_users():
             tree_users.insert(values=(u.username, u.role, u.nom or '-', u.prenom or '-', u.email or '-'))
     
-    def logout(self):
+    def logout(self) -> None:
         self.auth_controller.logout(self.current_user.id)
         self.current_user = None
         self.show_login()

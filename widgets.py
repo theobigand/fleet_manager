@@ -1,36 +1,31 @@
-# widgets.py - Widgets réutilisables avec type hints
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Callable, List, Dict, Any, Tuple
 
 
 class FilterableTreeview(tk.Frame):
-    """Treeview avec barre de recherche et filtres intégrés"""
     
     def __init__(
         self,
         parent: tk.Widget,
-        columns: List[Tuple[str, str, int]],  # [(id, heading, width), ...]
+        columns: List[Tuple[str, str, int]],
         on_double_click: Optional[Callable] = None,
         on_right_click: Optional[Callable] = None,
         show_scrollbar: bool = True,
         height: int = 15
-    ):
+    ) -> None:
         super().__init__(parent)
         self.on_double_click = on_double_click
         self.on_right_click = on_right_click
         self.color_tags: Dict[str, str] = {}
         
-        # Créer le Treeview
         col_ids = [c[0] for c in columns]
         self.tree = ttk.Treeview(self, columns=col_ids, show='headings', height=height)
         
-        # Configurer les colonnes
         for col_id, heading, width in columns:
             self.tree.heading(col_id, text=heading)
             self.tree.column(col_id, width=width)
         
-        # Scrollbars
         if show_scrollbar:
             v_scroll = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
             h_scroll = ttk.Scrollbar(self, orient='horizontal', command=self.tree.xview)
@@ -45,14 +40,12 @@ class FilterableTreeview(tk.Frame):
         else:
             self.tree.pack(fill='both', expand=True)
         
-        # Bindings
         if on_double_click:
             self.tree.bind('<Double-1>', lambda e: on_double_click())
         if on_right_click:
             self.tree.bind('<Button-3>', self._handle_right_click)
     
     def _handle_right_click(self, event: tk.Event) -> None:
-        """Gère le clic droit"""
         item = self.tree.identify_row(event.y)
         if item:
             self.tree.selection_set(item)
@@ -60,35 +53,29 @@ class FilterableTreeview(tk.Frame):
                 self.on_right_click(event)
     
     def configure_tag(self, tag_name: str, **kwargs) -> None:
-        """Configure un tag de couleur"""
         self.tree.tag_configure(tag_name, **kwargs)
         self.color_tags[tag_name] = kwargs.get('background', '')
     
     def clear(self) -> None:
-        """Vide le treeview"""
         for item in self.tree.get_children():
             self.tree.delete(item)
     
     def insert(self, values: tuple, tags: tuple = ()) -> str:
-        """Insère une ligne et retourne l'item id"""
         return self.tree.insert('', 'end', values=values, tags=tags)
     
     def get_selected_tags(self) -> Optional[tuple]:
-        """Retourne les tags de l'élément sélectionné"""
         selection = self.tree.selection()
         if not selection:
             return None
         return self.tree.item(selection[0])['tags']
     
     def get_selected_values(self) -> Optional[tuple]:
-        """Retourne les valeurs de l'élément sélectionné"""
         selection = self.tree.selection()
         if not selection:
             return None
         return self.tree.item(selection[0])['values']
     
     def get_selected_id(self, tag_index: int = 1) -> Optional[int]:
-        """Retourne l'ID stocké dans les tags (par défaut index 1)"""
         tags = self.get_selected_tags()
         if tags and len(tags) > tag_index:
             try:
@@ -99,7 +86,6 @@ class FilterableTreeview(tk.Frame):
 
 
 class BaseFormDialog(tk.Toplevel):
-    """Classe de base pour les dialogues de formulaire"""
     
     def __init__(
         self,
@@ -107,7 +93,7 @@ class BaseFormDialog(tk.Toplevel):
         title: str,
         width: int = 450,
         height: int = 400
-    ):
+    ) -> None:
         super().__init__(parent)
         self.result: Optional[Dict[str, Any]] = None
         
@@ -119,16 +105,13 @@ class BaseFormDialog(tk.Toplevel):
         self.transient(parent)
         self.grab_set()
 
-        # Conteneur principal
         self.form_frame = tk.Frame(self, bg='#ffffff')
         self.form_frame.pack(fill='both', expand=True, padx=30, pady=20)
         
-        # Variables du formulaire
         self.vars: Dict[str, tk.Variable] = {}
         self.current_row = 0
     
     def add_section_title(self, text: str) -> None:
-        """Ajoute un titre de section"""
         tk.Label(
             self.form_frame,
             text=text,
@@ -146,7 +129,6 @@ class BaseFormDialog(tk.Toplevel):
         show: Optional[str] = None,
         width: int = 30
     ) -> ttk.Entry:
-        """Ajoute un champ de saisie texte"""
         tk.Label(self.form_frame, text=label, bg='#ffffff', fg='#000000').grid(
             row=self.current_row, column=0, sticky='e', padx=(0, 10), pady=5
         )
@@ -171,7 +153,6 @@ class BaseFormDialog(tk.Toplevel):
         width: int = 27,
         state: str = 'readonly'
     ) -> ttk.Combobox:
-        """Ajoute une liste déroulante"""
         tk.Label(self.form_frame, text=label, bg='#ffffff', fg='#000000').grid(
             row=self.current_row, column=0, sticky='e', padx=(0, 10), pady=5
         )
@@ -194,7 +175,6 @@ class BaseFormDialog(tk.Toplevel):
         var_name: str,
         default: bool = False
     ) -> ttk.Checkbutton:
-        """Ajoute une case à cocher"""
         tk.Label(self.form_frame, text=label, bg='#ffffff', fg='#000000').grid(
             row=self.current_row, column=0, sticky='e', padx=(0, 10), pady=5
         )
@@ -212,7 +192,6 @@ class BaseFormDialog(tk.Toplevel):
         width: int = 30,
         height: int = 3
     ) -> tk.Text:
-        """Ajoute une zone de texte multiligne"""
         tk.Label(self.form_frame, text=label, bg='#ffffff', fg='#000000').grid(
             row=self.current_row, column=0, sticky='ne', padx=(0, 10), pady=5
         )
@@ -220,7 +199,7 @@ class BaseFormDialog(tk.Toplevel):
         text_widget = tk.Text(self.form_frame, width=width, height=height,
                              bg='#ffffff', fg='#000000', insertbackground='#000000')
         text_widget.grid(row=self.current_row, column=1, sticky='w', pady=5)
-        self.vars[var_name] = text_widget  # Stocke le widget directement
+        self.vars[var_name] = text_widget
         self.current_row += 1
         return text_widget
     
@@ -230,7 +209,6 @@ class BaseFormDialog(tk.Toplevel):
         var_name: str,
         filetypes: List[Tuple[str, str]] = None
     ) -> ttk.Entry:
-        """Ajoute un sélecteur de fichier"""
         tk.Label(self.form_frame, text=label, bg='#ffffff', fg='#000000').grid(
             row=self.current_row, column=0, sticky='e', padx=(0, 10), pady=5
         )
@@ -242,7 +220,7 @@ class BaseFormDialog(tk.Toplevel):
         entry = ttk.Entry(file_frame, textvariable=self.vars[var_name], width=22)
         entry.pack(side='left')
 
-        def browse():
+        def browse() -> None:
             ft = filetypes or [("Tous les fichiers", "*.*")]
             filename = filedialog.askopenfilename(filetypes=ft)
             if filename:
@@ -262,7 +240,6 @@ class BaseFormDialog(tk.Toplevel):
         save_text: str = "Enregistrer",
         cancel_text: str = "Annuler"
     ) -> None:
-        """Ajoute les boutons Enregistrer et Annuler"""
         btn_frame = tk.Frame(self.form_frame, bg='#ffffff')
         btn_frame.grid(row=self.current_row, column=0, columnspan=2, pady=25)
 
@@ -290,7 +267,6 @@ class BaseFormDialog(tk.Toplevel):
         ).pack(side='left', padx=5)
     
     def get_value(self, var_name: str) -> Any:
-        """Récupère la valeur d'un champ"""
         var = self.vars.get(var_name)
         if var is None:
             return None
@@ -299,7 +275,6 @@ class BaseFormDialog(tk.Toplevel):
         return var.get()
     
     def set_value(self, var_name: str, value: Any) -> None:
-        """Définit la valeur d'un champ"""
         var = self.vars.get(var_name)
         if var is None:
             return
@@ -312,16 +287,13 @@ class BaseFormDialog(tk.Toplevel):
             var.set(str(value) if value is not None else "")
     
     def show_error(self, message: str) -> None:
-        """Affiche un message d'erreur"""
         messagebox.showerror("Erreur", message)
     
     def show_success(self, message: str) -> None:
-        """Affiche un message de succès"""
         messagebox.showinfo("Succès", message)
 
 
 class StatCard(tk.Frame):
-    """Carte de statistique pour le tableau de bord"""
     
     def __init__(
         self,
@@ -329,15 +301,13 @@ class StatCard(tk.Frame):
         title: str,
         value: str,
         color: str
-    ):
+    ) -> None:
         super().__init__(parent, bg='white', relief='solid', borderwidth=1)
         
         self.color = color
         
-        # Bande de couleur
         tk.Frame(self, bg=color, height=5).pack(fill='x')
         
-        # Valeur
         self.value_label = tk.Label(
             self,
             text=value,
@@ -347,7 +317,6 @@ class StatCard(tk.Frame):
         )
         self.value_label.pack(pady=(15, 5))
         
-        # Titre
         tk.Label(
             self,
             text=title,
@@ -357,12 +326,10 @@ class StatCard(tk.Frame):
         ).pack(pady=(0, 15))
     
     def set_value(self, value: str) -> None:
-        """Met à jour la valeur affichée"""
         self.value_label.config(text=value)
 
 
 class AlertBanner(tk.Frame):
-    """Bannière d'alerte (ex: Parc complet)"""
 
     def __init__(
         self,
@@ -370,7 +337,7 @@ class AlertBanner(tk.Frame):
         message: str,
         bg_color: str = '#e74c3c',
         fg_color: str = '#000000'
-    ):
+    ) -> None:
         super().__init__(parent, bg=bg_color)
 
         self.label = tk.Label(
@@ -384,38 +351,32 @@ class AlertBanner(tk.Frame):
         self.label.pack()
     
     def set_message(self, message: str) -> None:
-        """Met à jour le message"""
         self.label.config(text=message)
     
     def show(self) -> None:
-        """Affiche la bannière"""
         self.pack(fill='x', padx=20, pady=(0, 10))
     
     def hide(self) -> None:
-        """Cache la bannière"""
         self.pack_forget()
 
 
 class SearchBar(tk.Frame):
-    """Barre de recherche avec filtres"""
 
     def __init__(
         self,
         parent: tk.Widget,
         on_search: Callable[[], None],
-        filters: Optional[List[Tuple[str, str, List[str]]]] = None  # [(label, var_name, values), ...]
-    ):
+        filters: Optional[List[Tuple[str, str, List[str]]]] = None
+    ) -> None:
         super().__init__(parent, bg='#ffffff')
         self.on_search = on_search
         self.vars: Dict[str, tk.StringVar] = {}
 
-        # Champ de recherche
         tk.Label(self, text="Recherche:", bg='#ffffff', fg='#000000').pack(side='left')
         self.vars['search'] = tk.StringVar()
         self.vars['search'].trace('w', lambda *args: on_search())
         ttk.Entry(self, textvariable=self.vars['search'], width=25).pack(side='left', padx=(5, 15))
 
-        # Filtres
         if filters:
             for label, var_name, values in filters:
                 tk.Label(self, text=f"{label}:", bg='#ffffff', fg='#000000').pack(side='left')
@@ -430,7 +391,6 @@ class SearchBar(tk.Frame):
                 combo.pack(side='left', padx=(5, 15))
                 combo.bind('<<ComboboxSelected>>', lambda e: on_search())
 
-        # Bouton reset
         tk.Button(
             self,
             text="Reset",
@@ -441,11 +401,9 @@ class SearchBar(tk.Frame):
         ).pack(side='left')
     
     def get_value(self, var_name: str) -> str:
-        """Récupère la valeur d'un filtre"""
         return self.vars.get(var_name, tk.StringVar()).get()
     
     def reset(self) -> None:
-        """Réinitialise tous les filtres"""
         for var in self.vars.values():
             var.set('')
         self.on_search()

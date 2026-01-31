@@ -1,14 +1,12 @@
-# controllers/employee_controller.py - Logique métier des employés
 from typing import Optional, List, Dict, Any
 from models import Employee
 from dao import EmployeeDAO, UserDAO
-from controllers.vehicle_controller import Result
+from controllers.result import Result
 
 
 class EmployeeController:
-    """Controller pour la logique métier des employés"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.dao = EmployeeDAO()
         self.log_dao = UserDAO()
     
@@ -94,8 +92,8 @@ class EmployeeController:
         self.log_dao.add_log(user_id, 'SUPPRESSION_EMPLOYE', f"Suppression de l'employé {employee.matricule}")
         return Result.ok(message="Employé supprimé")
     
-    def get_vehicle(self, employee_id: int):
+    def get_vehicle(self, employee_id: int) -> Dict[str, Any] | None:
         return self.dao.get_vehicle_affectation(employee_id)
     
-    def get_sorties(self, employee_id: int):
+    def get_sorties(self, employee_id: int) -> List[Dict[str, Any]]:
         return self.dao.get_sorties(employee_id)
