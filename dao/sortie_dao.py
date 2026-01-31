@@ -1,11 +1,8 @@
-# dao/sortie_dao.py - Accès aux données des sorties
 from typing import Optional, List, Dict, Any
 from dao.base_dao import BaseDAO
 from models import Sortie
 
-
 class SortieDAO(BaseDAO):
-    """DAO pour les sorties/réservations"""
     
     def find_by_id(self, sortie_id: int) -> Optional[Sortie]:
         row = self._fetch_one("""
@@ -47,7 +44,6 @@ class SortieDAO(BaseDAO):
     def create(self, sortie: Sortie) -> Optional[int]:
         data = sortie.to_dict()
         data.pop('id', None)
-        # Retirer les champs joints
         for key in ['immatriculation', 'marque', 'modele', 'nom', 'prenom', 'matricule']:
             data.pop(key, None)
         return self._insert('sorties_reservations', data)

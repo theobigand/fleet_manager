@@ -1,12 +1,9 @@
-# dao/user_dao.py - Accès aux données des utilisateurs et logs
 import hashlib
 from typing import Optional, List
 from dao.base_dao import BaseDAO
 from models import User, Log
 
-
 class UserDAO(BaseDAO):
-    """DAO pour les utilisateurs et logs"""
     
     @staticmethod
     def hash_password(password: str) -> str:
@@ -42,7 +39,6 @@ class UserDAO(BaseDAO):
             admin = User(username='admin', role='admin', nom='Administrateur', prenom='Système')
             self.create(admin, 'admin123')
     
-    # === LOGS ===
     def add_log(self, user_id: Optional[int], action: str, details: str = "") -> None:
         self._insert('logs', {'user_id': user_id, 'action': action, 'details': details})
     

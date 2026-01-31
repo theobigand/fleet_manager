@@ -1,11 +1,7 @@
-# dao/stats_dao.py - Accès aux données statistiques
 from typing import List, Dict, Any
 from dao.base_dao import BaseDAO
 
-
 class StatsDAO(BaseDAO):
-    """DAO pour les statistiques"""
-    
     def get_overview(self) -> Dict[str, Any]:
         conn = self.get_connection()
         stats = {

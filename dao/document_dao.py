@@ -1,14 +1,10 @@
-# dao/document_dao.py - Accès aux données des documents
 from typing import Optional, List
 from dao.base_dao import BaseDAO
 from models import Document
 
-
 class DocumentDAO(BaseDAO):
-    """DAO pour les documents"""
     
-    def find_all(self, vehicle_immat: Optional[str] = None, 
-                 type_document: Optional[str] = None) -> List[Document]:
+    def find_all(self, vehicle_immat: Optional[str] = None, type_document: Optional[str] = None) -> List[Document]:
         query = """
             SELECT d.*, v.immatriculation, v.marque, v.modele
             FROM documents d

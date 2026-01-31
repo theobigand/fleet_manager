@@ -1,15 +1,10 @@
-# dao/maintenance_dao.py - Accès aux données maintenance et ravitaillements
 from typing import Optional, List, Dict, Any
 from dao.base_dao import BaseDAO
 from models import Maintenance, Ravitaillement
 
-
 class MaintenanceDAO(BaseDAO):
-    """DAO pour la maintenance et les ravitaillements"""
     
-    # === MAINTENANCES ===
-    def find_all_maintenances(self, vehicle_immat: Optional[str] = None, 
-                              type_intervention: Optional[str] = None) -> List[Maintenance]:
+    def find_all_maintenances(self, vehicle_immat: Optional[str] = None, type_intervention: Optional[str] = None) -> List[Maintenance]:
         query = """
             SELECT m.*, v.immatriculation, v.marque, v.modele
             FROM maintenances m
@@ -44,7 +39,6 @@ class MaintenanceDAO(BaseDAO):
     def delete_maintenance(self, maint_id: int) -> None:
         self._delete('maintenances', maint_id)
     
-    # === RAVITAILLEMENTS ===
     def find_all_ravitaillements(self, vehicle_immat: Optional[str] = None) -> List[Ravitaillement]:
         query = """
             SELECT r.*, v.immatriculation, v.marque, v.modele, e.nom, e.prenom

@@ -1,14 +1,9 @@
-# dao/vehicle_dao.py - Accès aux données des véhicules
 from typing import Optional, List, Dict, Any
 from dao.base_dao import BaseDAO
 from models import Vehicle
 
-
-class VehicleDAO(BaseDAO):
-    """DAO pour les véhicules - Requêtes SQL uniquement"""
-    
+class VehicleDAO(BaseDAO):    
     def find_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Vehicle]:
-        """Récupère tous les véhicules avec filtres optionnels"""
         query = "SELECT * FROM vehicules WHERE 1=1"
         params: List[Any] = []
         
@@ -37,41 +32,33 @@ class VehicleDAO(BaseDAO):
         return [Vehicle.from_dict(row) for row in rows]
     
     def find_by_id(self, vehicle_id: int) -> Optional[Vehicle]:
-        """Récupère un véhicule par son ID"""
         row = self._fetch_one("SELECT * FROM vehicules WHERE id = ?", (vehicle_id,))
         return Vehicle.from_dict(row)
     
     def find_by_immat(self, immatriculation: str) -> Optional[Vehicle]:
-        """Récupère un véhicule par son immatriculation"""
         row = self._fetch_one("SELECT * FROM vehicules WHERE immatriculation = ?", (immatriculation,))
         return Vehicle.from_dict(row)
     
     def find_available(self) -> List[Vehicle]:
-        """Récupère les véhicules disponibles"""
         return self.find_all({'disponible_only': True})
     
     def create(self, vehicle: Vehicle) -> Optional[int]:
-        """Crée un nouveau véhicule"""
         data = vehicle.to_dict()
         data.pop('id', None)
         return self._insert('vehicules', data)
     
     def update(self, vehicle: Vehicle) -> None:
-        """Met à jour un véhicule"""
         data = vehicle.to_dict()
         vehicle_id = data.pop('id')
         self._update('vehicules', vehicle_id, data)
     
     def update_fields(self, vehicle_id: int, **fields) -> None:
-        """Met à jour certains champs d'un véhicule"""
         self._update('vehicules', vehicle_id, fields)
     
     def delete(self, vehicle_id: int) -> None:
-        """Supprime un véhicule"""
         self._delete('vehicules', vehicle_id)
     
     def get_stats(self) -> Dict[str, int]:
-        """Récupère les statistiques du parc"""
         conn = self.get_connection()
         stats = {
             'total': conn.execute("SELECT COUNT(*) FROM vehicules").fetchone()[0],
@@ -84,7 +71,6 @@ class VehicleDAO(BaseDAO):
         return stats
     
     def get_affectation(self, vehicle_id: int) -> Optional[Dict[str, Any]]:
-        """Récupère l'affectation permanente d'un véhicule"""
         return self._fetch_one("""
             SELECT a.*, e.nom, e.prenom, e.matricule 
             FROM affectations_permanentes a
@@ -93,7 +79,6 @@ class VehicleDAO(BaseDAO):
         """, (vehicle_id,))
     
     def get_sorties(self, vehicle_id: int) -> List[Dict[str, Any]]:
-        """Récupère l'historique des sorties d'un véhicule"""
         return self._fetch_all("""
             SELECT s.*, e.nom, e.prenom, e.matricule
             FROM sorties_reservations s
@@ -103,7 +88,6 @@ class VehicleDAO(BaseDAO):
         """, (vehicle_id,))
     
     def get_maintenances(self, vehicle_id: int) -> List[Dict[str, Any]]:
-        """Récupère l'historique des maintenances d'un véhicule"""
         return self._fetch_all("""
             SELECT * FROM maintenances 
             WHERE vehicule_id = ? 
@@ -111,7 +95,6 @@ class VehicleDAO(BaseDAO):
         """, (vehicle_id,))
     
     def get_documents(self, vehicle_id: int) -> List[Dict[str, Any]]:
-        """Récupère les documents d'un véhicule"""
         return self._fetch_all("""
             SELECT * FROM documents 
             WHERE vehicule_id = ? 
@@ -119,7 +102,6 @@ class VehicleDAO(BaseDAO):
         """, (vehicle_id,))
     
     def get_ravitaillements(self, vehicle_id: int) -> List[Dict[str, Any]]:
-        """Récupère l'historique des ravitaillements d'un véhicule"""
         return self._fetch_all("""
             SELECT r.*, e.nom, e.prenom
             FROM ravitaillements r
@@ -129,7 +111,6 @@ class VehicleDAO(BaseDAO):
         """, (vehicle_id,))
     
     def calculate_consumption(self, vehicle_id: int) -> Optional[float]:
-        """Calcule la consommation moyenne d'un véhicule"""
         rows = self._fetch_all("""
             SELECT quantite_litres, kilometrage 
             FROM ravitaillements 
