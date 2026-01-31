@@ -1,14 +1,12 @@
-# controllers/document_controller.py - Logique métier des documents
 from typing import Optional, List, Dict, Any
 from models import Document
 from dao import DocumentDAO, UserDAO
-from controllers.vehicle_controller import Result
+from controllers.result import Result
 
 
 class DocumentController:
-    """Controller pour les documents"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.dao = DocumentDAO()
         self.log_dao = UserDAO()
     

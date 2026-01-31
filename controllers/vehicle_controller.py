@@ -1,51 +1,28 @@
-# controllers/vehicle_controller.py - Logique métier des véhicules
 from typing import Optional, List, Dict, Any, Tuple
-from dataclasses import dataclass
 from models import Vehicle
 from dao import VehicleDAO, UserDAO
-
-
-@dataclass
-class Result:
-    """Résultat d'une opération"""
-    success: bool
-    message: str = ""
-    data: Any = None
-    
-    @classmethod
-    def ok(cls, data: Any = None, message: str = "") -> "Result":
-        return cls(success=True, message=message, data=data)
-    
-    @classmethod
-    def error(cls, message: str) -> "Result":
-        return cls(success=False, message=message)
+from controllers.result import Result
 
 
 class VehicleController:
-    """Controller pour la logique métier des véhicules"""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.dao = VehicleDAO()
         self.log_dao = UserDAO()
     
     def get_all(self, filters: Optional[Dict[str, Any]] = None) -> List[Vehicle]:
-        """Récupère tous les véhicules"""
         return self.dao.find_all(filters)
     
     def get_available(self) -> List[Vehicle]:
-        """Récupère les véhicules disponibles"""
         return self.dao.find_available()
     
     def get_by_id(self, vehicle_id: int) -> Optional[Vehicle]:
-        """Récupère un véhicule par son ID"""
         return self.dao.find_by_id(vehicle_id)
     
     def get_stats(self) -> Dict[str, int]:
-        """Récupère les statistiques du parc"""
         return self.dao.get_stats()
     
     def create(self, data: Dict[str, Any], user_id: int) -> Result:
-        """Crée un nouveau véhicule avec validation"""
         # Validation
         immat = data.get('immatriculation', '').strip()
         marque = data.get('marque', '').strip()
@@ -88,23 +65,19 @@ class VehicleController:
         return Result.error("Erreur lors de la création")
     
     def update(self, vehicle_id: int, data: Dict[str, Any], user_id: int) -> Result:
-        """Met à jour un véhicule avec validation"""
         vehicle = self.dao.find_by_id(vehicle_id)
         if not vehicle:
             return Result.error("Véhicule non trouvé")
         
-        # Validation
         immat = data.get('immatriculation', '').strip()
         if not immat:
             return Result.error("L'immatriculation est obligatoire")
         
-        # Vérifier unicité si changement d'immatriculation
         if immat.upper() != vehicle.immatriculation:
             existing = self.dao.find_by_immat(immat.upper())
             if existing:
                 return Result.error("Cette immatriculation existe déjà")
         
-        # Mettre à jour
         fields = {
             'immatriculation': immat.upper(),
             'marque': data.get('marque', vehicle.marque),
@@ -128,7 +101,6 @@ class VehicleController:
         return Result.ok(message="Véhicule modifié avec succès")
     
     def delete(self, vehicle_id: int, user_id: int) -> Result:
-        """Supprime un véhicule"""
         vehicle = self.dao.find_by_id(vehicle_id)
         if not vehicle:
             return Result.error("Véhicule non trouvé")
@@ -138,28 +110,26 @@ class VehicleController:
         return Result.ok(message="Véhicule supprimé")
     
     def update_status(self, vehicle_id: int, statut: str) -> None:
-        """Met à jour le statut d'un véhicule"""
         self.dao.update_fields(vehicle_id, statut=statut)
     
     def update_km(self, vehicle_id: int, km: int) -> None:
-        """Met à jour le kilométrage d'un véhicule"""
         self.dao.update_fields(vehicle_id, kilometrage_actuel=km)
     
     # Méthodes déléguées au DAO
-    def get_affectation(self, vehicle_id: int):
+    def get_affectation(self, vehicle_id: int) -> Dict[str, Any] | None:
         return self.dao.get_affectation(vehicle_id)
     
-    def get_sorties(self, vehicle_id: int):
+    def get_sorties(self, vehicle_id: int) -> List[Dict[str, Any]]:
         return self.dao.get_sorties(vehicle_id)
     
-    def get_maintenances(self, vehicle_id: int):
+    def get_maintenances(self, vehicle_id: int) -> List[Dict[str, Any]]:
         return self.dao.get_maintenances(vehicle_id)
     
-    def get_documents(self, vehicle_id: int):
+    def get_documents(self, vehicle_id: int) -> List[Dict[str, Any]]:
         return self.dao.get_documents(vehicle_id)
     
-    def get_ravitaillements(self, vehicle_id: int):
+    def get_ravitaillements(self, vehicle_id: int) -> List[Dict[str, Any]]:
         return self.dao.get_ravitaillements(vehicle_id)
     
-    def calculate_consumption(self, vehicle_id: int):
+    def calculate_consumption(self, vehicle_id: int) -> float | None:
         return self.dao.calculate_consumption(vehicle_id)
