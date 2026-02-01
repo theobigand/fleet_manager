@@ -32,7 +32,7 @@ class EmployeesView(ctk.CTkFrame):
         self.filter.pack(side='left', padx=5)
 
         self.only_auth = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(flt, text="Autorisés seulement", variable=self.only_auth,
+        ctk.CTkCheckBox(flt, text="Autorisés seulement",  text_color='#333333', variable=self.only_auth,
                         command=self.refresh).pack(side='left', padx=10)
 
         ctk.CTkButton(flt, text="Actualiser", command=self.refresh,
