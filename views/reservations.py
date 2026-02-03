@@ -2,6 +2,7 @@ import customtkinter as ctk
 from tkinter import ttk, messagebox
 from datetime import datetime, date
 from controllers import SortieController, VehicleController, EmployeeController
+from config import VEHICLE_STATUSES, format_status, get_status_key
 
 
 class ReservationsView(ctk.CTkFrame):
@@ -68,10 +69,11 @@ class ReservationsView(ctk.CTkFrame):
         flt = ctk.CTkFrame(tab, fg_color='transparent')
         flt.pack(fill='x', padx=10, pady=10)
         ctk.CTkLabel(flt, text="Statut:", text_color='#333333').pack(side='left')
-        self.filter = ctk.CTkComboBox(flt, values=['Tous', 'terminee', 'annulee'], width=150,
+        self.filter = ctk.CTkComboBox(flt, values=['Tous', 'Terminée', 'Annulée'], width=150,
                                        command=lambda e: self.refresh())
         self.filter.set('Tous')
         self.filter.pack(side='left', padx=5)
+        self.sortie_statut_map = {'Terminée': 'terminee', 'Annulée': 'annulee'}
 
         # liste
         tree_frame = ctk.CTkFrame(tab, fg_color='transparent')
@@ -109,8 +111,8 @@ class ReservationsView(ctk.CTkFrame):
 
         # historique
         self.tree_hist.delete(*self.tree_hist.get_children())
-        statut = self.filter.get()
-        statut = None if statut == 'Tous' else statut
+        statut_display = self.filter.get()
+        statut = None if statut_display == 'Tous' else self.sortie_statut_map.get(statut_display, statut_display)
 
         for s in self.sortie_ctrl.get_historique(statut):
             km = f"{s.km_parcourus} km" if s.km_parcourus else '-'
@@ -126,10 +128,11 @@ class ReservationsView(ctk.CTkFrame):
                 except:
                     pass
 
+            statut_display = 'Terminée' if s.statut == 'terminee' else ('Annulée' if s.statut == 'annulee' else s.statut)
             self.tree_hist.insert('', 'end',
                                   values=(f"{s.immatriculation}", f"{s.prenom} {s.nom}",
                                           s.date_sortie_reelle or '-', s.date_retour_reelle or '-',
-                                          km, duree, s.statut),
+                                          km, duree, statut_display),
                                   tags=(s.statut, str(s.id)))
 
     def new_sortie(self, veh_id=None) -> None:
@@ -289,8 +292,9 @@ class RetourForm(ctk.CTkToplevel):
         self.carb.grid(row=2, column=1, pady=8)
 
         ctk.CTkLabel(f, text="Nouveau statut").grid(row=3, column=0, sticky='w', pady=8)
-        self.statut = ctk.CTkComboBox(f, values=['disponible', 'en_maintenance', 'en_panne'], width=280)
-        self.statut.set('disponible')
+        retour_statuts = ['Disponible', 'En maintenance', 'En panne']
+        self.statut = ctk.CTkComboBox(f, values=retour_statuts, width=280)
+        self.statut.set('Disponible')
         self.statut.grid(row=3, column=1, pady=8)
 
         # boutons
@@ -310,7 +314,7 @@ class RetourForm(ctk.CTkToplevel):
             'km_retour': self.km.get(),
             'etat_retour': self.etat.get(),
             'niveau_carburant': self.carb.get(),
-            'nouveau_statut': self.statut.get()
+            'nouveau_statut': get_status_key(self.statut.get())
         }
 
         res = self.ctrl.enregistrer_retour(self.sortie.id, data, self.app.current_user.id)

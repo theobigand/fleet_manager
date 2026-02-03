@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import platform
 
 from dao import BaseDAO
 from controllers import AuthController
@@ -7,6 +8,7 @@ from views.login import LoginView
 from views.dashboard import DashboardView
 from views.vehicles import VehiclesView
 from views.employees import EmployeesView
+from views.affectations import AffectationsView
 from views.reservations import ReservationsView
 from views.maintenance import MaintenanceView
 from views.documents import DocumentsView
@@ -20,6 +22,17 @@ class FleetApp(tk.Tk):
         self.title("Gestion de Parc Automobile")
         self.geometry("1200x700")
         self.configure(bg='#ffffff')
+
+        # Lancer en mode maximisé
+        try:
+            if platform.system() == 'Windows':
+                self.state('zoomed')
+            elif platform.system() == 'Darwin': # macOS
+                self.state('zoomed')
+            else:  # Linux
+                self.attributes('-zoomed', True)
+        except tk.TclError:
+            pass
 
         style = ttk.Style()
         style.theme_use('clam')
@@ -104,7 +117,7 @@ class FleetApp(tk.Tk):
         tk.Label(sidebar, text=f"({self.current_user.role})", font=('Helvetica', 9), bg='#f5f5f5', fg='#666666').pack(pady=(0, 15))
 
         menus = [('Tableau de bord', 'dashboard'), ('Véhicules', 'vehicles'), ('Employés', 'employees'),
-                 ('Réservations', 'reservations'), ('Maintenance', 'maintenance'),
+                 ('Affectations', 'affectations'), ('Réservations', 'reservations'), ('Maintenance', 'maintenance'),
                  ('Documents', 'documents'), ('Statistiques', 'statistics')]
 
         if self.current_user.role == 'admin':
@@ -112,6 +125,8 @@ class FleetApp(tk.Tk):
 
         for label, view in menus:
             if self.current_user.role == 'employe' and view not in ('dashboard', 'reservations'):
+                continue
+            if self.current_user.role == 'gestionnaire' and view == 'admin':
                 continue
             btn = tk.Button(sidebar, text=label, anchor='w', padx=20, pady=10,
                            bg='#f5f5f5', fg='#000000', relief='flat', font=('Helvetica', 10),
@@ -139,6 +154,7 @@ class FleetApp(tk.Tk):
             'dashboard': DashboardView,
             'vehicles': VehiclesView,
             'employees': EmployeesView,
+            'affectations': AffectationsView,
             'reservations': ReservationsView,
             'maintenance': MaintenanceView,
             'documents': DocumentsView,
@@ -172,12 +188,96 @@ class FleetApp(tk.Tk):
 
         users_frame = tk.Frame(notebook, bg='white')
         notebook.add(users_frame, text='Utilisateurs')
+
+        toolbar = tk.Frame(users_frame, bg='white')
+        toolbar.pack(fill='x', padx=10, pady=10)
+        tk.Button(toolbar, text="+ Nouvel utilisateur", command=lambda: self._show_user_form(tree_users),
+                  bg='#2ecc71', fg='black', relief='flat', padx=15, pady=5, cursor='hand2').pack(side='left')
+        tk.Button(toolbar, text="Désactiver", command=lambda: self._delete_user(tree_users),
+                  bg='#e74c3c', fg='black', relief='flat', padx=15, pady=5, cursor='hand2').pack(side='left', padx=10)
+
         cols2 = [('username', 'Username', 120), ('role', 'Rôle', 100), ('nom', 'Nom', 150), ('prenom', 'Prénom', 150), ('email', 'Email', 200)]
         tree_users = FilterableTreeview(users_frame, columns=cols2)
         tree_users.pack(fill='both', expand=True, padx=10, pady=10)
         for u in self.auth_controller.get_all_users():
             tree_users.insert(values=(u.username, u.role, u.nom or '-', u.prenom or '-', u.email or '-'))
-    
+
+    def _show_user_form(self, tree) -> None:
+        win = tk.Toplevel(self)
+        win.title("Nouvel utilisateur")
+        win.geometry("400x350")
+        win.resizable(False, False)
+        win.transient(self)
+        win.grab_set()
+
+        f = tk.Frame(win, bg='white')
+        f.pack(fill='both', expand=True, padx=20, pady=20)
+
+        entries = {}
+        fields = [('username', "Nom d'utilisateur *"), ('password', 'Mot de passe *'),
+                  ('role', 'Rôle *'), ('nom', 'Nom'), ('prenom', 'Prénom'), ('email', 'Email')]
+
+        for i, (key, label) in enumerate(fields):
+            tk.Label(f, text=label, bg='white', fg='#333333').grid(row=i, column=0, sticky='w', pady=8)
+            if key == 'role':
+                entries[key] = ttk.Combobox(f, values=['admin', 'gestionnaire', 'employe'], state='readonly', width=27)
+                entries[key].set('employe')
+            elif key == 'password':
+                entries[key] = ttk.Entry(f, width=30, show='*')
+            else:
+                entries[key] = ttk.Entry(f, width=30)
+            entries[key].grid(row=i, column=1, pady=8, padx=10)
+
+        def save():
+            data = {
+                'username': entries['username'].get().strip(),
+                'role': entries['role'].get(),
+                'nom': entries['nom'].get().strip() or None,
+                'prenom': entries['prenom'].get().strip() or None,
+                'email': entries['email'].get().strip() or None
+            }
+            password = entries['password'].get()
+
+            result = self.auth_controller.create_user(data, password, self.current_user.id)
+            if result.success:
+                messagebox.showinfo("Succès", "Utilisateur créé")
+                for item in tree.tree.get_children():
+                    tree.tree.delete(item)
+                for u in self.auth_controller.get_all_users():
+                    tree.insert(values=(u.username, u.role, u.nom or '-', u.prenom or '-', u.email or '-'))
+                win.destroy()
+            else:
+                messagebox.showerror("Erreur", result.message)
+
+        btns = tk.Frame(win, bg='white')
+        btns.pack(fill='x', pady=15, padx=20)
+        tk.Button(btns, text="Enregistrer", command=save, bg='#2ecc71', fg='black',
+                  relief='flat', padx=20, pady=8, cursor='hand2').pack(side='right', padx=5)
+        tk.Button(btns, text="Annuler", command=win.destroy, bg='#95a5a6', fg='black',
+                  relief='flat', padx=20, pady=8, cursor='hand2').pack(side='right', padx=5)
+
+    def _delete_user(self, tree) -> None:
+        selection = tree.tree.selection()
+        if not selection:
+            messagebox.showwarning("Attention", "Sélectionnez un utilisateur")
+            return
+
+        item = tree.tree.item(selection[0])
+        username = item['values'][0]
+
+        if not messagebox.askyesno("Confirmation", f"Désactiver l'utilisateur '{username}' ?"):
+            return
+
+        result = self.auth_controller.delete_user(username, self.current_user.id)
+        if result.success:
+            messagebox.showinfo("Succès", "Utilisateur désactivé")
+            for item in tree.tree.get_children():
+                tree.tree.delete(item)
+            for u in self.auth_controller.get_all_users():
+                tree.insert(values=(u.username, u.role, u.nom or '-', u.prenom or '-', u.email or '-'))
+        else:
+            messagebox.showerror("Erreur", result.message)
+
     def logout(self) -> None:
         self.auth_controller.logout(self.current_user.id)
         self.current_user = None

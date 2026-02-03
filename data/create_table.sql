@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS vehicules (
             
 CREATE TABLE IF NOT EXISTS affectations_permanentes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    vehicule_id INTEGER UNIQUE,
+    vehicule_id INTEGER,
     employe_id INTEGER,
     date_debut DATE,
     date_fin DATE,

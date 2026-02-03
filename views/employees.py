@@ -1,7 +1,8 @@
 import customtkinter as ctk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from datetime import datetime, date
 from controllers import EmployeeController
+from widgets import FilterableTreeview, AlertBanner
 
 
 class EmployeesView(ctk.CTkFrame):
@@ -38,36 +39,36 @@ class EmployeesView(ctk.CTkFrame):
         ctk.CTkButton(flt, text="Actualiser", command=self.refresh,
                       fg_color='#3498db', hover_color='#2980b9', width=100).pack(side='right')
 
-        # alerte permis
-        self.alert = ctk.CTkFrame(self, fg_color='#f39c12', corner_radius=8)
-        ctk.CTkLabel(self.alert, text="⚠️ Des permis expirent bientôt",
-                     font=ctk.CTkFont(size=14, weight='bold'), text_color='white').pack(pady=10)
+        # alerte permis (utilisation du widget AlertBanner)
+        self.alert = AlertBanner(self, "⚠️ Des permis expirent bientôt", bg_color='#f39c12')
 
-        # liste
+        # liste (utilisation du widget FilterableTreeview)
         tree_frame = ctk.CTkFrame(self, fg_color='transparent')
         tree_frame.pack(fill='both', expand=True, padx=20, pady=10)
 
-        cols = ('matricule', 'nom', 'prenom', 'service', 'permis', 'validite', 'autorise')
-        self.tree = ttk.Treeview(tree_frame, columns=cols, show='headings', height=15)
+        self.tree_widget = FilterableTreeview(
+            tree_frame,
+            columns=[
+                ('matricule', 'Matricule', 100),
+                ('nom', 'Nom', 120),
+                ('prenom', 'Prénom', 120),
+                ('service', 'Service', 100),
+                ('permis', 'N° Permis', 110),
+                ('validite', 'Validité', 110),
+                ('autorise', 'Autorisé', 80)
+            ],
+            on_double_click=self.detail,
+            height=15
+        )
+        self.tree_widget.pack(fill='both', expand=True)
 
-        self.tree.heading('matricule', text='Matricule')
-        self.tree.heading('nom', text='Nom')
-        self.tree.heading('prenom', text='Prénom')
-        self.tree.heading('service', text='Service')
-        self.tree.heading('permis', text='N° Permis')
-        self.tree.heading('validite', text='Validité')
-        self.tree.heading('autorise', text='Autorisé')
+        # couleurs pour les tags
+        self.tree_widget.configure_tag('ok', background='#d5f4e6')
+        self.tree_widget.configure_tag('warning', background='#ffeaa7')
+        self.tree_widget.configure_tag('expired', background='#ff7675')
 
-        # couleurs
-        self.tree.tag_configure('ok', background='#d5f4e6')
-        self.tree.tag_configure('warning', background='#ffeaa7')
-        self.tree.tag_configure('expired', background='#ff7675')
-
-        scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
-        self.tree.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
-        self.tree.bind('<Double-1>', lambda e: self.detail())
+        # référence directe pour compatibilité
+        self.tree = self.tree_widget.tree
 
         # boutons
         btns = ctk.CTkFrame(self, fg_color='transparent')
@@ -95,9 +96,8 @@ class EmployeesView(ctk.CTkFrame):
             return 'ok'
 
     def refresh(self) -> None:
-        # vider
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # vider avec le widget
+        self.tree_widget.clear()
 
         # filtrer
         filters = {}
@@ -117,16 +117,17 @@ class EmployeesView(ctk.CTkFrame):
                 has_alert = True
 
             auth = 'Oui' if e.autorise_conduire else 'Non'
-            self.tree.insert('', 'end',
-                             values=(e.matricule, e.nom, e.prenom, e.service or '-',
-                                     e.num_permis or '-', e.date_validite_permis or '-', auth),
-                             tags=(tag, str(e.id)))
+            self.tree_widget.insert(
+                values=(e.matricule, e.nom, e.prenom, e.service or '-',
+                        e.num_permis or '-', e.date_validite_permis or '-', auth),
+                tags=(tag, str(e.id))
+            )
 
-        # alerte
+        # alerte avec AlertBanner
         if has_alert:
-            self.alert.pack(fill='x', padx=20, pady=10, before=self.tree.master)
+            self.alert.show(before=self.tree_widget.master)
         else:
-            self.alert.pack_forget()
+            self.alert.hide()
 
     def add(self) -> None:
         EmpForm(self, self.app, self.ctrl, None, self.refresh)
@@ -173,7 +174,7 @@ class EmpForm(ctk.CTkToplevel):
         self.cb = cb
 
         self.title("Modifier" if emp else "Nouvel employé")
-        self.geometry("500x580")
+        self.geometry("500x650")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -217,7 +218,13 @@ class EmpForm(ctk.CTkToplevel):
         self.auth = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(f, text="Autorisé à conduire", variable=self.auth).grid(row=8, column=1, sticky='w', pady=8)
 
-        # boutons
+        ctk.CTkLabel(f, text="Photo").grid(row=9, column=0, sticky='w', pady=8)
+        photo_frame = ctk.CTkFrame(f, fg_color='transparent')
+        photo_frame.grid(row=9, column=1, pady=8, sticky='w')
+        self.photo = ctk.CTkEntry(photo_frame, width=200)
+        self.photo.pack(side='left')
+        ctk.CTkButton(photo_frame, text="...", width=30, command=self.browse_photo).pack(side='left', padx=5)
+
         btns = ctk.CTkFrame(self, fg_color='transparent')
         btns.pack(fill='x', pady=15, padx=20)
         ctk.CTkButton(btns, text="Enregistrer", command=self.save,
@@ -225,7 +232,6 @@ class EmpForm(ctk.CTkToplevel):
         ctk.CTkButton(btns, text="Annuler", command=self.destroy,
                       fg_color='#95a5a6', hover_color='#7f8c8d', width=140).pack(side='right', padx=5)
 
-        # charger
         if emp:
             self.mat.insert(0, emp.matricule)
             self.nom.insert(0, emp.nom)
@@ -236,6 +242,13 @@ class EmpForm(ctk.CTkToplevel):
             self.permis.insert(0, emp.num_permis or '')
             self.validite.insert(0, emp.date_validite_permis or '')
             self.auth.set(emp.autorise_conduire)
+            self.photo.insert(0, emp.photo_path or '')
+
+    def browse_photo(self) -> None:
+        path = filedialog.askopenfilename(filetypes=[("Images", "*.jpg *.jpeg *.png")])
+        if path:
+            self.photo.delete(0, 'end')
+            self.photo.insert(0, path)
 
     def save(self) -> None:
         if not self.mat.get() or not self.nom.get() or not self.prenom.get():
@@ -251,7 +264,8 @@ class EmpForm(ctk.CTkToplevel):
             'email': self.email.get() or None,
             'num_permis': self.permis.get() or None,
             'date_validite_permis': self.validite.get() or None,
-            'autorise_conduire': 1 if self.auth.get() else 0
+            'autorise_conduire': 1 if self.auth.get() else 0,
+            'photo_path': self.photo.get() or None
         }
 
         if self.emp:
@@ -270,39 +284,45 @@ class EmpForm(ctk.CTkToplevel):
 class EmpDetail(ctk.CTkToplevel):
     def __init__(self, parent, ctrl, eid) -> None:
         super().__init__(parent)
-        e = ctrl.get_by_id(eid)
+        self.ctrl = ctrl
+        self.e = ctrl.get_by_id(eid)
+        self.eid = eid
 
-        self.title(f"Fiche - {e.nom} {e.prenom}")
-        self.geometry("650x450")
-        self.resizable(False, False)
+        self.title(f"Fiche - {self.e.nom} {self.e.prenom}")
+        self.geometry("700x600")
         self.transient(parent)
         self.grab_set()
 
-        # header
         h = ctk.CTkFrame(self, fg_color='#ecf0f1', corner_radius=0)
         h.pack(fill='x')
-        ctk.CTkLabel(h, text=f"{e.nom} {e.prenom} ({e.matricule})",
+        ctk.CTkLabel(h, text=f"{self.e.nom} {self.e.prenom} ({self.e.matricule})",
                      font=ctk.CTkFont(size=20, weight='bold'), text_color='#2c3e50').pack(side='left', padx=20, pady=15)
 
-        color = '#2ecc71' if e.autorise_conduire else '#e74c3c'
-        txt = 'Autorisé' if e.autorise_conduire else 'Non autorisé'
+        color = '#2ecc71' if self.e.autorise_conduire else '#e74c3c'
+        txt = 'Autorisé' if self.e.autorise_conduire else 'Non autorisé'
         badge = ctk.CTkLabel(h, text=txt, fg_color=color, corner_radius=6, text_color='white',
                              padx=15, pady=5)
         badge.pack(side='right', padx=20, pady=15)
 
-        # infos
+        veh_aff = self.ctrl.dao.get_vehicle_affectation(eid)
+        if veh_aff:
+            veh_frame = ctk.CTkFrame(self, fg_color='#e8f4f8', corner_radius=8)
+            veh_frame.pack(fill='x', padx=30, pady=10)
+            ctk.CTkLabel(veh_frame, text=f"Véhicule de fonction: {veh_aff['immatriculation']} - {veh_aff['marque']} {veh_aff['modele']}",
+                         font=ctk.CTkFont(weight='bold')).pack(pady=10)
+
         info = ctk.CTkFrame(self, fg_color='transparent')
-        info.pack(fill='both', expand=True, padx=30, pady=20)
+        info.pack(fill='x', padx=30, pady=10)
 
         data = [
-            ("Matricule:", e.matricule),
-            ("Nom:", e.nom),
-            ("Prénom:", e.prenom),
-            ("Service:", e.service or '-'),
-            ("Téléphone:", e.telephone or '-'),
-            ("Email:", e.email or '-'),
-            ("N° Permis:", e.num_permis or '-'),
-            ("Validité:", e.date_validite_permis or '-')
+            ("Matricule:", self.e.matricule),
+            ("Nom:", self.e.nom),
+            ("Prénom:", self.e.prenom),
+            ("Service:", self.e.service or '-'),
+            ("Téléphone:", self.e.telephone or '-'),
+            ("Email:", self.e.email or '-'),
+            ("N° Permis:", self.e.num_permis or '-'),
+            ("Validité:", self.e.date_validite_permis or '-')
         ]
 
         for i, (lbl, val) in enumerate(data):
@@ -311,6 +331,30 @@ class EmpDetail(ctk.CTkToplevel):
             ctk.CTkLabel(info, text=lbl, font=ctk.CTkFont(weight='bold'),
                          text_color='#7f8c8d').grid(row=row, column=col, sticky='e', padx=10, pady=8)
             ctk.CTkLabel(info, text=val, text_color='#2c3e50').grid(row=row, column=col + 1, sticky='w', padx=10, pady=8)
+
+        ctk.CTkLabel(self, text="Historique des sorties", font=ctk.CTkFont(size=14, weight='bold'),
+                     text_color='#2c3e50').pack(anchor='w', padx=30, pady=(10, 5))
+
+        sorties_frame = ctk.CTkFrame(self, fg_color='transparent')
+        sorties_frame.pack(fill='both', expand=True, padx=30, pady=5)
+
+        sorties = self.ctrl.dao.get_sorties(eid)
+        cols = ('date', 'vehicule', 'destination', 'km')
+        tree = ttk.Treeview(sorties_frame, columns=cols, show='headings', height=6)
+        tree.heading('date', text='Date')
+        tree.heading('vehicule', text='Véhicule')
+        tree.heading('destination', text='Destination')
+        tree.heading('km', text='Km parcourus')
+        tree.pack(fill='both', expand=True)
+
+        for s in sorties:
+            km = (s.get('km_retour', 0) or 0) - (s.get('km_depart', 0) or 0)
+            tree.insert('', 'end', values=(
+                s.get('date_sortie_reelle', '-'),
+                f"{s['immatriculation']} ({s['marque']})",
+                s.get('destination', '-'),
+                f"{km} km" if km > 0 else '-'
+            ))
 
         ctk.CTkButton(self, text="Fermer", command=self.destroy,
                       fg_color='#95a5a6', hover_color='#7f8c8d', width=120).pack(pady=15)

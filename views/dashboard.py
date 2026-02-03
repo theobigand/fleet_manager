@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from tkinter import ttk, messagebox
 from controllers import VehicleController
+from widgets import StatCard, AlertBanner
 
 
 class DashboardView(ctk.CTkFrame):
@@ -15,25 +16,26 @@ class DashboardView(ctk.CTkFrame):
         ctk.CTkLabel(self, text="Tableau de bord", font=ctk.CTkFont(size=24, weight='bold'),
                      text_color='#333333').pack(pady=20)
 
-        # cartes de statistiques
         stats_frame = ctk.CTkFrame(self, fg_color='transparent')
         stats_frame.pack(fill='x', padx=20, pady=10)
 
-        self.lbl_total = self.create_stat_card(stats_frame, "Total", "0", '#3498db')
-        self.lbl_dispo = self.create_stat_card(stats_frame, "Disponibles", "0", '#2ecc71')
-        self.lbl_sortie = self.create_stat_card(stats_frame, "En sortie", "0", '#f39c12')
-        self.lbl_maint = self.create_stat_card(stats_frame, "En maintenance", "0", '#e74c3c')
+        self.card_total = StatCard(stats_frame, "Total", "0", '#3498db')
+        self.card_total.pack(side='left', padx=10, fill='x', expand=True)
 
-        # alerte parc complet
-        self.alert_frame = ctk.CTkFrame(self, fg_color='#e74c3c')
-        ctk.CTkLabel(self.alert_frame, text="PARC COMPLET - Aucun véhicule disponible",
-                     font=ctk.CTkFont(size=14, weight='bold'), text_color='white').pack(pady=10)
+        self.card_dispo = StatCard(stats_frame, "Disponibles", "0", '#2ecc71')
+        self.card_dispo.pack(side='left', padx=10, fill='x', expand=True)
 
-        # titre liste
+        self.card_sortie = StatCard(stats_frame, "En sortie", "0", '#f39c12')
+        self.card_sortie.pack(side='left', padx=10, fill='x', expand=True)
+
+        self.card_maint = StatCard(stats_frame, "En maintenance", "0", '#e74c3c')
+        self.card_maint.pack(side='left', padx=10, fill='x', expand=True)
+
+        self.alert = AlertBanner(self, "PARC COMPLET - Aucun véhicule disponible")
+
         ctk.CTkLabel(self, text="Véhicules disponibles", font=ctk.CTkFont(size=16, weight='bold'),
                      text_color='#333333').pack(anchor='w', padx=20, pady=(20, 5))
 
-        # treeview
         tree_frame = ctk.CTkFrame(self, fg_color='transparent')
         tree_frame.pack(fill='both', expand=True, padx=20, pady=10)
 
@@ -57,7 +59,6 @@ class DashboardView(ctk.CTkFrame):
         self.tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
 
-        # boutons
         btn_frame = ctk.CTkFrame(self, fg_color='transparent')
         btn_frame.pack(fill='x', padx=20, pady=10)
 
@@ -68,42 +69,23 @@ class DashboardView(ctk.CTkFrame):
                       fg_color='#2ecc71', hover_color='#27ae60', width=120,
                       font=ctk.CTkFont(weight='bold')).pack(side='right', padx=5)
 
-    def create_stat_card(self, parent, title, value, color) -> ctk.CTkLabel:
-        """Crée une carte de statistique"""
-        card = ctk.CTkFrame(parent, fg_color=color, corner_radius=10)
-        card.pack(side='left', padx=10, fill='x', expand=True)
-
-        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=12),
-                     text_color='white').pack(pady=(10, 5))
-
-        lbl_value = ctk.CTkLabel(card, text=value, font=ctk.CTkFont(size=28, weight='bold'),
-                                  text_color='white')
-        lbl_value.pack(pady=(5, 10))
-        return lbl_value
-
     def refresh(self) -> None:
-        """Actualise les données"""
-        # stats
         stats = self.controller.get_stats()
-        self.lbl_total.configure(text=str(stats['total']))
-        self.lbl_dispo.configure(text=str(stats['disponible']))
-        self.lbl_sortie.configure(text=str(stats['en_sortie']))
-        self.lbl_maint.configure(text=str(stats['en_maintenance'] + stats.get('en_panne', 0)))
+        self.card_total.set_value(str(stats['total']))
+        self.card_dispo.set_value(str(stats['disponible']))
+        self.card_sortie.set_value(str(stats['en_sortie']))
+        self.card_maint.set_value(str(stats['en_maintenance'] + stats.get('en_panne', 0)))
 
-        # alerte parc complet
         if stats['disponible'] == 0 and stats['total'] > 0:
-            self.alert_frame.pack(fill='x', padx=20, pady=10, after=self.lbl_maint.master)
+            self.alert.show(after=self.card_maint.master)
         else:
-            self.alert_frame.pack_forget()
+            self.alert.hide()
 
-        # liste véhicules disponibles
         vehicles = self.controller.get_available()
 
-        # vider le treeview
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # remplir avec les véhicules disponibles
         for v in vehicles:
             self.tree.insert('', 'end', values=(
                 v.immatriculation, v.marque, v.modele,
@@ -111,8 +93,10 @@ class DashboardView(ctk.CTkFrame):
             ))
 
     def reserve(self) -> None:
-        """Réserver le véhicule sélectionné"""
         selection = self.tree.selection()
         if not selection:
             messagebox.showwarning("Attention", "Veuillez sélectionner un véhicule")
             return
+
+        immat = self.tree.item(selection[0])['values'][0]
+        self.app.navigate_to('reservations', immatriculation=immat)

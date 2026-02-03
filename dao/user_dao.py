@@ -22,7 +22,7 @@ class UserDAO(BaseDAO):
         return User.from_dict(row)
     
     def find_all(self) -> List[User]:
-        rows=self._fetch_all("SELECT * FROM users ORDER BY nom, prenom", ())
+        rows=self._fetch_all("SELECT * FROM users WHERE actif = 1 ORDER BY nom, prenom", ())
         return [User.from_dict(row) for row in rows]
     
     def create(self, user: User, password: str) -> Optional[int]:

@@ -5,4 +5,5 @@ from controllers.maintenance_controller import MaintenanceController
 from controllers.document_controller import DocumentController
 from controllers.auth_controller import AuthController
 from controllers.stats_controller import StatsController
+from controllers.affectation_controller import AffectationController
 from controllers.result import Result

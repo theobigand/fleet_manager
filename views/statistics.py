@@ -154,7 +154,7 @@ class StatisticsView(ctk.CTkFrame):
         # graphiques
         if HAS_MPL:
             self.ax1.clear()
-            labels = ['Dispo', 'Sortie', 'Maint', 'Panne']
+            labels = ['Disponible', 'En sortie', 'En maintenance', 'En panne']
             sizes = [stats['disponibles'], stats['en_sortie'], stats['en_maintenance'], stats['en_panne']]
             colors = ['#27ae60', '#f39c12', '#3498db', '#e74c3c']
 

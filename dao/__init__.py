@@ -6,3 +6,4 @@ from dao.maintenance_dao import MaintenanceDAO
 from dao.document_dao import DocumentDAO
 from dao.user_dao import UserDAO
 from dao.stats_dao import StatsDAO
+from dao.affectation_dao import AffectationDAO

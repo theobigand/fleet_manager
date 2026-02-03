@@ -48,9 +48,21 @@ class AuthController:
     
     def get_all_users(self) -> List[User]:
         return self.dao.find_all()
-    
+
+    def delete_user(self, username: str, admin_user_id: int) -> Result:
+        user = self.dao.find_by_username(username)
+        if not user:
+            return Result.error("Utilisateur non trouvé")
+
+        if user.id == admin_user_id:
+            return Result.error("Vous ne pouvez pas supprimer votre propre compte")
+
+        self.dao._update('users', user.id, {'actif': 0})
+        self.dao.add_log(admin_user_id, 'DESACTIVATION_UTILISATEUR', f"Désactivation de {username}")
+        return Result.ok(None, "Utilisateur désactivé")
+
     def get_logs(self, limit: int = 100) -> List[Log]:
         return self.dao.get_logs(limit)
-    
+
     def init_default_admin(self) -> None:
         self.dao.create_default_admin()

@@ -2,7 +2,7 @@
 
 ## Description
 
-Application desktop Python/Tkinter pour la gestion efficace du parc automobile d'une entreprise.
+Application desktop Python avec interface moderne (CustomTkinter) pour la gestion efficace du parc automobile d'une entreprise. L'application démarre automatiquement en mode maximisé.
 
 ## Fonctionnalités
 
@@ -82,13 +82,13 @@ deactivate
 ### Installation rapide (sans venv)
 ```bash
 cd fleet_manager
-pip install matplotlib reportlab  # Optionnel: pour graphiques et export PDF
+pip install customtkinter matplotlib reportlab
 python main.py
 ```
 
 ### Note
-L'application fonctionne même sans matplotlib et reportlab, mais avec des 
-fonctionnalités réduites (pas de graphiques, pas d'export PDF).
+- **CustomTkinter** est requis pour l'interface graphique moderne
+- **matplotlib** et **reportlab** sont optionnels (graphiques et export PDF)
 
 ## Comptes de test
 
@@ -102,30 +102,38 @@ fonctionnalités réduites (pas de graphiques, pas d'export PDF).
 
 ```
 fleet_manager/
-├── main.py                     # Point d'entrée
-├── config.py                   # Configuration et constantes
-├── widgets.py                  # Composants UI réutilisables
+├── main.py                     # Point d'entrée de l'application
+├── config.py                   # Configuration, constantes et fonctions de formatage
 ├── requirements.txt            # Dépendances Python
+│
+├── widgets/                    # Composants UI réutilisables
+│   ├── __init__.py             # Exports des widgets
+│   ├── filterable_treeview.py  # Treeview avec scrollbars et tags
+│   ├── stat_card.py            # Carte statistique colorée
+│   ├── alert_banner.py         # Bannière d'alerte (ex: "Parc complet")
+│   └── search_bar.py           # Barre de recherche avec filtres
 │
 ├── controllers/                # Logique métier
 │   ├── __init__.py
 │   ├── result.py               # Classe Result pour les retours d'opérations
-│   ├── auth_controller.py      # Authentification
+│   ├── auth_controller.py      # Authentification et gestion utilisateurs
 │   ├── vehicle_controller.py   # Gestion véhicules
 │   ├── employee_controller.py  # Gestion employés
+│   ├── affectation_controller.py # Gestion affectations permanentes
 │   ├── sortie_controller.py    # Gestion sorties/réservations
 │   ├── maintenance_controller.py # Gestion maintenance et ravitaillements
 │   ├── document_controller.py  # Gestion documents
 │   └── stats_controller.py     # Statistiques et rapports
 │
-├── dao/                        # Couche d'accès aux données
+├── dao/                        # Couche d'accès aux données (Data Access Object)
 │   ├── __init__.py
-│   ├── base_dao.py             # Classe DAO de base
-│   ├── user_dao.py             # Accès données utilisateurs
+│   ├── base_dao.py             # Classe DAO de base avec méthodes génériques
+│   ├── user_dao.py             # Accès données utilisateurs et logs
 │   ├── vehicle_dao.py          # Accès données véhicules
 │   ├── employee_dao.py         # Accès données employés
-│   ├── sortie_dao.py           # Accès données sorties
-│   ├── maintenance_dao.py      # Accès données maintenance
+│   ├── affectation_dao.py      # Accès données affectations permanentes
+│   ├── sortie_dao.py           # Accès données sorties/réservations
+│   ├── maintenance_dao.py      # Accès données maintenance et ravitaillements
 │   ├── document_dao.py         # Accès données documents
 │   └── stats_dao.py            # Accès données statistiques
 │
@@ -140,16 +148,17 @@ fleet_manager/
 │   ├── document.py             # Modèle Document
 │   └── log.py                  # Modèle Log
 │
-├── views/                      # Interface utilisateur (Tkinter)
+├── views/                      # Interface utilisateur (CustomTkinter)
 │   ├── __init__.py
 │   ├── login.py                # Écran de connexion
-│   ├── dashboard.py            # Tableau de bord
-│   ├── vehicles.py             # Vue gestion véhicules
-│   ├── employees.py            # Vue gestion employés
-│   ├── reservations.py         # Vue sorties et retours
-│   ├── maintenance.py          # Vue maintenance et carburant
+│   ├── dashboard.py            # Tableau de bord avec statistiques
+│   ├── vehicles.py             # Vue gestion véhicules (CRUD + recherche)
+│   ├── employees.py            # Vue gestion employés (CRUD + alertes permis)
+│   ├── affectations.py         # Vue affectations permanentes (voitures de fonction)
+│   ├── reservations.py         # Vue sorties et retours de véhicules
+│   ├── maintenance.py          # Vue maintenance, carburant et échéances
 │   ├── documents.py            # Vue documents administratifs
-│   └── statistics.py           # Vue statistiques et exports
+│   └── statistics.py           # Vue statistiques et exports (CSV/PDF)
 │
 ├── data/                       # Données persistantes
 │   ├── fleet.db                # Base de données SQLite
@@ -163,9 +172,10 @@ fleet_manager/
 L'application suit une architecture **MVC** (Model-View-Controller) avec une couche **DAO** (Data Access Object) :
 
 - **Models** : Dataclasses représentant les entités métier
-- **Views** : Interfaces Tkinter pour l'interaction utilisateur
+- **Views** : Interfaces CustomTkinter pour l'interaction utilisateur
 - **Controllers** : Logique métier et validation
 - **DAO** : Abstraction de l'accès à la base de données SQLite
+- **Widgets** : Composants UI réutilisables (FilterableTreeview, StatCard, AlertBanner, SearchBar)
 
 ## Base de données
 
