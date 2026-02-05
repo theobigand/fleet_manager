@@ -83,16 +83,16 @@ class VehicleController:
             'marque': data.get('marque', vehicle.marque),
             'modele': data.get('modele', vehicle.modele),
             'type_vehicule': data.get('type_vehicule'),
-            'annee': int(data['annee']) if data.get('annee', '').isdigit() else None,
+            'annee': int(data['annee']) if data.get('annee', '') else None,
             'date_acquisition': data.get('date_acquisition') or None,
             'kilometrage_actuel': int(data.get('kilometrage_actuel', 0)) if str(data.get('kilometrage_actuel', '')).isdigit() else vehicle.kilometrage_actuel,
             'carburant': data.get('carburant'),
-            'puissance_fiscale': int(data['puissance_fiscale']) if data.get('puissance_fiscale', '').isdigit() else None,
+            'puissance_fiscale': int(data['puissance_fiscale']) if data.get('puissance_fiscale', '') else None,
             'numero_chassis': data.get('numero_chassis'),
             'service_principal': data.get('service_principal'),
             'type_affectation': data.get('type_affectation', 'mutualise'),
             'statut': data.get('statut', vehicle.statut),
-            'seuil_revision_km': int(data.get('seuil_revision_km', 15000)) if str(data.get('seuil_revision_km', '')).isdigit() else vehicle.seuil_revision_km,
+            'seuil_revision_km': int(data.get('seuil_revision_km', 15000)) if str(data.get('seuil_revision_km', '')) else vehicle.seuil_revision_km,
             'photo_path': data.get('photo_path')
         }
         
@@ -104,10 +104,38 @@ class VehicleController:
         vehicle = self.dao.find_by_id(vehicle_id)
         if not vehicle:
             return Result.error("Véhicule non trouvé")
+    
+        conn = self.dao.get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT COUNT(*) FROM sorties_reservations WHERE vehicule_id = ?", 
+                (vehicle_id,)
+            )
+            count = cursor.fetchone()[0]
         
-        self.dao.delete(vehicle_id)
-        self.log_dao.add_log(user_id, 'SUPPRESSION_VEHICULE', f"Suppression du véhicule {vehicle.immatriculation}")
-        return Result.ok(message="Véhicule supprimé")
+            if count > 0:
+             return Result.error(
+                    f"Impossible de supprimer : {count} sortie(s) enregistrée(s) pour ce véhicule.\n"
+                    "Supprimez les sorties associées"
+                )
+        
+            cursor = conn.execute(
+                "SELECT COUNT(*) FROM affectations_permanentes WHERE vehicule_id = ?", 
+                (vehicle_id,)
+            )
+            affectations = cursor.fetchone()[0]
+        
+            if affectations > 0:
+             return Result.error(
+                 "Impossible de supprimer : le véhicule a des affectations permanentes.\n"
+                 "Supprimez d'abord les affectations."
+             )
+        
+        finally:
+            conn.close()
+            self.dao.delete(vehicle_id)
+            self.log_dao.add_log(user_id, 'SUPPRESSION_VEHICULE', f"Suppression du véhicule {vehicle.immatriculation}")
+            return Result.ok(message="Véhicule supprimé")
     
     def update_status(self, vehicle_id: int, statut: str) -> None:
         self.dao.update_fields(vehicle_id, statut=statut)

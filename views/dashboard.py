@@ -90,13 +90,12 @@ class DashboardView(ctk.CTkFrame):
             self.tree.insert('', 'end', values=(
                 v.immatriculation, v.marque, v.modele,
                 v.type_vehicule or '-', f"{v.kilometrage_actuel:,} km"
-            ))
+            ), tags=(str(v.id),))
 
     def reserve(self) -> None:
         selection = self.tree.selection()
         if not selection:
             messagebox.showwarning("Attention", "Veuillez sélectionner un véhicule")
             return
-
-        immat = self.tree.item(selection[0])['values'][0]
-        self.app.navigate_to('reservations', immatriculation=immat)
+        veh_id = int(self.tree.item(selection[0])['tags'][0])
+        self.app.navigate_to('reservations', vehicle_id=veh_id)
